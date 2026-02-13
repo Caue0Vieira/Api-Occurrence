@@ -117,8 +117,28 @@
                             }
                         }
                     },
+                    "400": {
+                        "description": "Bad Request - Idempotency-Key ausente ou inválido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
                     "404": {
                         "description": "Ocorrência não encontrada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Requisição duplicada - Idempotency Key já utilizada",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -151,6 +171,9 @@
                 "security": [
                     {
                         "apiKey": []
+                    },
+                    {
+                        "idempotencyKey": []
                     }
                 ]
             }
@@ -187,8 +210,28 @@
                             }
                         }
                     },
+                    "400": {
+                        "description": "Bad Request - Idempotency-Key ausente ou inválido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
                     "404": {
                         "description": "Despacho não encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Requisição duplicada - Idempotency Key já utilizada",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -211,6 +254,9 @@
                 "security": [
                     {
                         "apiKey": []
+                    },
+                    {
+                        "idempotencyKey": []
                     }
                 ]
             }
@@ -645,8 +691,28 @@
                             }
                         }
                     },
+                    "400": {
+                        "description": "Bad Request - Idempotency-Key ausente ou inválido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
                     "404": {
                         "description": "Ocorrência não encontrada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Requisição duplicada - Idempotency Key já utilizada",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -669,6 +735,9 @@
                 "security": [
                     {
                         "apiKey": []
+                    },
+                    {
+                        "idempotencyKey": []
                     }
                 ]
             }
@@ -851,8 +920,7 @@
                         "type": "string",
                         "enum": [
                             "pending",
-                            "processing",
-                            "completed",
+                            "processed",
                             "failed"
                         ],
                         "example": "completed"
