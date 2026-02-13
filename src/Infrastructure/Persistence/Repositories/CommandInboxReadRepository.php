@@ -6,6 +6,7 @@ namespace Infrastructure\Persistence\Repositories;
 
 use Application\DTOs\CommandStatusResult;
 use Domain\Idempotency\Repositories\CommandInboxReadRepositoryInterface;
+use Infrastructure\Support\CommandNormalizationHelper;
 use Illuminate\Support\Facades\DB;
 
 class CommandInboxReadRepository implements CommandInboxReadRepositoryInterface
@@ -23,29 +24,10 @@ class CommandInboxReadRepository implements CommandInboxReadRepositoryInterface
         return new CommandStatusResult(
             commandId: $row->id,
             status: $row->status,
-            result: $this->normalizeJsonColumn($row->result),
+            result: CommandNormalizationHelper::normalizeJsonColumn($row->result),
             errorMessage: $row->error_message,
             processedAt: $row->processed_at,
         );
-    }
-
-    private function normalizeJsonColumn(mixed $value): ?array
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        if (is_array($value)) {
-            return $value;
-        }
-
-        if (is_string($value)) {
-            $decoded = json_decode($value, true);
-
-            return is_array($decoded) ? $decoded : null;
-        }
-
-        return null;
     }
 }
 

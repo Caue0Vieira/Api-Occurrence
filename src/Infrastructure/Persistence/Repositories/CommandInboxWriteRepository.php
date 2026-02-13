@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace Infrastructure\Persistence\Repositories;
 
 use Application\DTOs\CommandRegistrationResult;
+use Carbon\CarbonInterface;
+use Domain\Idempotency\Enums\CommandStatus;
 use Domain\Idempotency\Exceptions\IdempotencyConflictException;
 use Domain\Idempotency\Repositories\CommandInboxWriteRepositoryInterface;
 use Domain\Shared\ValueObjects\Uuid;
+use Infrastructure\Support\CommandNormalizationHelper;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use JsonException;
 
@@ -16,76 +20,114 @@ class CommandInboxWriteRepository implements CommandInboxWriteRepositoryInterfac
     /**
      * @throws JsonException
      */
-    public function registerOrGet(string $idempotencyKey, string $source, string $type, string $scopeKey, array $payload): CommandRegistrationResult
-    {
-        $payloadHash = hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR));
-        $ttlInSeconds = (int)config('api.idempotency.ttl', 86400);
-        $expiresAt = now()->addSeconds($ttlInSeconds);
-        $normalizedIdempotencyKey = $this->normalizeIdempotencyKey($idempotencyKey);
+    public function registerOrGet(
+        string $idempotencyKey,
+        string $source,
+        string $type,
+        string $scopeKey,
+        array $payload
+    ): CommandRegistrationResult {
+        $normalizedKey = CommandNormalizationHelper::normalizeIdempotencyKey($idempotencyKey);
+        $normalizedPayload = CommandNormalizationHelper::normalizePayload($payload);
+        $payloadHash = $this->calculatePayloadHash($normalizedPayload);
+        $expiresAt = $this->getExpirationDate();
 
-        return DB::transaction(function () use ($normalizedIdempotencyKey, $source, $type, $scopeKey, $payload, $payloadHash, $expiresAt): CommandRegistrationResult {
-            DB::table('command_inbox')
-                ->where('idempotency_key', $normalizedIdempotencyKey)
-                ->where('type', $type)
-                ->where('scope_key', $scopeKey)
-                ->whereNotNull('expires_at')
-                ->where('expires_at', '<', now())
-                ->delete();
-
-            $existing = DB::table('command_inbox')
-                ->where('idempotency_key', $normalizedIdempotencyKey)
-                ->where('type', $type)
-                ->where('scope_key', $scopeKey)
-                ->lockForUpdate()
-                ->first();
-
-            if ($existing !== null) {
-                if ($existing->payload_hash !== $payloadHash) {
-                    throw IdempotencyConflictException::withPayloadMismatch($normalizedIdempotencyKey, $scopeKey);
-                }
-
-                $shouldDispatch = $existing->status === 'pending' || $existing->status === 'failed';
-
-                return new CommandRegistrationResult(
-                    commandId: $existing->id,
-                    shouldDispatch: $shouldDispatch
-                );
-            }
-
-            $commandId = Uuid::generate()->toString();
-
-            DB::table('command_inbox')->insert([
-                'id' => $commandId,
-                'idempotency_key' => $normalizedIdempotencyKey,
-                'source' => $source,
-                'type' => $type,
-                'scope_key' => $scopeKey,
-                'payload_hash' => $payloadHash,
-                'payload' => json_encode($payload, JSON_THROW_ON_ERROR),
-                'status' => 'pending',
-                'processed_at' => null,
-                'expires_at' => $expiresAt,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+        try {
+            $commandId = $this->insertNewCommand(
+                idempotencyKey: $normalizedKey,
+                source: $source,
+                type: $type,
+                scopeKey: $scopeKey,
+                payload: $normalizedPayload,
+                payloadHash: $payloadHash,
+                expiresAt: $expiresAt
+            );
 
             return new CommandRegistrationResult(
                 commandId: $commandId,
                 shouldDispatch: true
             );
-        });
+        } catch (QueryException $e) {
+            if (($e->errorInfo[0] ?? null) !== '23505') {
+                throw $e;
+            }
+
+            $existing = $this->findExistingCommand(
+                idempotencyKey: $normalizedKey,
+                type: $type,
+                scopeKey: $scopeKey
+            );
+
+            if ($existing === null) {
+                throw $e;
+            }
+
+            if ((string) $existing->payload_hash !== $payloadHash) {
+                throw IdempotencyConflictException::withPayloadMismatch($normalizedKey, $scopeKey);
+            }
+
+            $status = CommandStatus::fromString((string) $existing->status);
+
+            return new CommandRegistrationResult(
+                commandId: (string) $existing->id,
+                shouldDispatch: $status->shouldDispatch()
+            );
+        }
     }
 
-    private function normalizeIdempotencyKey(string $idempotencyKey): string
+    /**
+     * @throws JsonException
+     */
+    private function insertNewCommand(
+        string $idempotencyKey,
+        string $source,
+        string $type,
+        string $scopeKey,
+        array $payload,
+        string $payloadHash,
+        CarbonInterface $expiresAt
+    ): string {
+        $commandId = Uuid::generate()->toString();
+
+        DB::table('command_inbox')->insert([
+            'id' => $commandId,
+            'idempotency_key' => $idempotencyKey,
+            'source' => $source,
+            'type' => $type,
+            'scope_key' => $scopeKey,
+            'payload_hash' => $payloadHash,
+            'payload' => json_encode($payload, JSON_THROW_ON_ERROR),
+            'status' => CommandStatus::PENDING->value,
+            'processed_at' => null,
+            'expires_at' => $expiresAt,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $commandId;
+    }
+
+    private function findExistingCommand(string $idempotencyKey, string $type, string $scopeKey): ?object
     {
-        $trimmed = trim($idempotencyKey);
+        return DB::table('command_inbox')
+            ->select(['id', 'status', 'payload_hash'])
+            ->where('idempotency_key', $idempotencyKey)
+            ->where('type', $type)
+            ->where('scope_key', $scopeKey)
+            ->first();
+    }
 
-        if ($trimmed !== '') {
-            return $trimmed;
-        }
+    /**
+     * @throws JsonException
+     */
+    private function calculatePayloadHash(array $normalizedPayload): string
+    {
+        return hash('sha256', json_encode($normalizedPayload, JSON_THROW_ON_ERROR));
+    }
 
-        // Mantem rastreabilidade de comandos internos sem depender de header.
-        return 'auto-' . Uuid::generate()->toString();
+    private function getExpirationDate(): CarbonInterface
+    {
+        $ttlInSeconds = (int) config('api.idempotency.ttl', 86400);
+        return now()->addSeconds($ttlInSeconds);
     }
 }
-
