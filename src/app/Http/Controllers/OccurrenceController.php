@@ -242,7 +242,8 @@ class OccurrenceController extends Controller
         description: "Marca uma ocorrência como resolvida. Retorna um comando que pode ser consultado posteriormente para verificar o status",
         summary: "Resolver uma ocorrência",
         security: [
-            ["apiKey" => []]
+            ["apiKey" => []],
+            ["idempotencyKey" => []]
         ],
         tags: ["Occurrences"],
         parameters: [
@@ -267,8 +268,22 @@ class OccurrenceController extends Controller
                 )
             ),
             new OA\Response(
+                response: 400,
+                description: "Bad Request - Idempotency-Key ausente ou inválido",
+                content: new OA\JsonContent(
+                    ref: "#/components/schemas/Error"
+                )
+            ),
+            new OA\Response(
                 response: 404,
                 description: "Ocorrência não encontrada",
+                content: new OA\JsonContent(
+                    ref: "#/components/schemas/Error"
+                )
+            ),
+            new OA\Response(
+                response: 409,
+                description: "Requisição duplicada - Idempotency Key já utilizada",
                 content: new OA\JsonContent(
                     ref: "#/components/schemas/Error"
                 )
@@ -286,7 +301,7 @@ class OccurrenceController extends Controller
     {
         $result = $this->occurrenceService->resolveOccurrence(
             occurrenceId: $id,
-            idempotencyKey: '',
+            idempotencyKey: (string) $request->attributes->get('idempotency_key'),
             source: 'internal_system'
         );
 

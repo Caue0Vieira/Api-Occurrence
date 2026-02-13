@@ -37,16 +37,20 @@ Route::middleware([
         Route::post('/{id}/start', [OccurrenceController::class, 'start'])
             ->middleware(IdempotencyMiddleware::class);
 
-        Route::post('/{id}/resolve', [OccurrenceController::class, 'resolve']);
+        Route::post('/{id}/resolve', [OccurrenceController::class, 'resolve'])
+            ->middleware(IdempotencyMiddleware::class);
 
-        Route::post('/{id}/dispatches', [DispatchController::class, 'create']);
+        Route::post('/{id}/dispatches', [DispatchController::class, 'create'])
+            ->middleware(IdempotencyMiddleware::class);
     });
 
     Route::prefix('dispatches')->group(function () {
 
-        Route::post('/{id}/close', [DispatchController::class, 'close']);
+        Route::post('/{id}/close', [DispatchController::class, 'close'])
+            ->middleware(IdempotencyMiddleware::class);
 
-        Route::patch('/{id}/status', [DispatchController::class, 'updateStatus']);
+        Route::patch('/{id}/status', [DispatchController::class, 'updateStatus'])
+            ->middleware(IdempotencyMiddleware::class);
     });
 
     Route::prefix('commands')->group(function () {

@@ -8,6 +8,7 @@ use App\Http\Requests\CreateDispatchRequest;
 use App\Http\Requests\UpdateDispatchStatusRequest;
 use Domain\Dispatch\Service\DispatchService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use OpenApi\Attributes as OA;
 
@@ -24,7 +25,8 @@ class DispatchController extends Controller
         description: "Cria um novo despacho para uma ocorrência específica. Retorna um comando que pode ser consultado posteriormente para verificar o status",
         summary: "Criar um novo despacho",
         security: [
-            ["apiKey" => []]
+            ["apiKey" => []],
+            ["idempotencyKey" => []]
         ],
         requestBody: new OA\RequestBody(
             required: true,
@@ -55,8 +57,22 @@ class DispatchController extends Controller
                 )
             ),
             new OA\Response(
+                response: 400,
+                description: "Bad Request - Idempotency-Key ausente ou inválido",
+                content: new OA\JsonContent(
+                    ref: "#/components/schemas/Error"
+                )
+            ),
+            new OA\Response(
                 response: 404,
                 description: "Ocorrência não encontrada",
+                content: new OA\JsonContent(
+                    ref: "#/components/schemas/Error"
+                )
+            ),
+            new OA\Response(
+                response: 409,
+                description: "Requisição duplicada - Idempotency Key já utilizada",
                 content: new OA\JsonContent(
                     ref: "#/components/schemas/Error"
                 )
@@ -82,7 +98,7 @@ class DispatchController extends Controller
         $result = $this->dispatchService->createDispatch(
             occurrenceId: $occurrenceId,
             resourceCode: $request->input('resourceCode'),
-            idempotencyKey: ''
+            idempotencyKey: (string) $request->attributes->get('idempotency_key')
         );
 
         return response()->json($result->toArray(), 202);
@@ -94,7 +110,8 @@ class DispatchController extends Controller
         description: "Fecha um despacho específico. Retorna um comando que pode ser consultado posteriormente para verificar o status",
         summary: "Fechar um despacho",
         security: [
-            ["apiKey" => []]
+            ["apiKey" => []],
+            ["idempotencyKey" => []]
         ],
         tags: ["Dispatches"],
         parameters: [
@@ -119,8 +136,22 @@ class DispatchController extends Controller
                 )
             ),
             new OA\Response(
+                response: 400,
+                description: "Bad Request - Idempotency-Key ausente ou inválido",
+                content: new OA\JsonContent(
+                    ref: "#/components/schemas/Error"
+                )
+            ),
+            new OA\Response(
                 response: 404,
                 description: "Despacho não encontrado",
+                content: new OA\JsonContent(
+                    ref: "#/components/schemas/Error"
+                )
+            ),
+            new OA\Response(
+                response: 409,
+                description: "Requisição duplicada - Idempotency Key já utilizada",
                 content: new OA\JsonContent(
                     ref: "#/components/schemas/Error"
                 )
@@ -134,11 +165,11 @@ class DispatchController extends Controller
             )
         ]
     )]
-    public function close(string $dispatchId): JsonResponse
+    public function close(Request $request, string $dispatchId): JsonResponse
     {
         $result = $this->dispatchService->closeDispatch(
             dispatchId: $dispatchId,
-            idempotencyKey: ''
+            idempotencyKey: (string) $request->attributes->get('idempotency_key')
         );
 
         return response()->json($result->toArray(), 202);
