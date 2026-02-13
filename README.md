@@ -1,154 +1,79 @@
+# 🚒 API de Gerenciamento de Ocorrências
 
-# 🚒 API de Gerenciamento de Ocorrências — Corpo de Bombeiros
+API REST para gerenciamento de ocorrências operacionais do Corpo de Bombeiros, desenvolvida com **Laravel** seguindo **DDD (Domain-Driven Design)** e **Arquitetura Hexagonal**.
 
-Sistema robusto de gerenciamento de ocorrências operacionais fundamentado em **DDD (Domain-Driven Design)** e **Arquitetura Hexagonal (Ports & Adapters)**. O projeto prioriza o processamento assíncrono e garantias rigorosas de consistência de dados.
+## 🚀 Como Rodar
 
-## 🏗️ Arquitetura do Ecossistema
+### Pré-requisitos
+- Docker e Docker Compose instalados
 
-O sistema é dividido em três componentes principais:
+### Executando com Docker Compose
 
-* **API (Laravel):** Porta de entrada que expõe endpoints, valida integrações e registra intenções de comando.
-* **Worker (Laravel):** Núcleo de processamento que consome filas e aplica as regras de negócio complexas.
-* **Frontend (React):** Interface administrativa para monitoramento, consulta e detalhamento de ocorrências.
-
----
-
-## 📋 Índice
-
-* [Visão Geral](#-visão-geral)
-* [Como Rodar](#-como-rodar-api--worker--frontend)
-* [Desenho de Arquitetura](#-desenho-de-arquitetura)
-* [Estratégia de Integração](#-estratégia-de-integração-externa)
-* [Garantias do Sistema (Idempotência, Concorrência e Auditoria)](#-idempotência-obrigatório)
-* [Testes Automatizados](#-testes-automatizados-obrigatório)
-* [Observabilidade e Falhas](#-pontos-de-falha-e-recuperação)
-
----
-
-## ✅ Visão Geral
-
-### Requisitos Atendidos
-* **Processamento Assíncrono:** Separação clara entre recebimento (API) e processamento (Worker).
-* **Idempotência:** Proteção nativa contra duplicidade via `Idempotency-Key`.
-* **Concorrência:** Tratamento de colisões de estado e transições inválidas.
-* **Auditoria Total:** Log rastreável de todas as mudanças de status.
-* **Frontend Operacional:** Dashboard para gestão de despachos e histórico.
-
-### Stack Tecnológica
-* **Linguagens/Frameworks:** Laravel 12 (PHP 8.2+), React + Vite.
-* **Persistência:** PostgreSQL 16.
-* **Mensageria & Cache:** RabbitMQ 3 e Redis 7.
-* **Infraestrutura:** Docker & Docker Compose.
-
----
-
-## 🚀 Como Rodar (API + Worker + Frontend)
-
-### 1) Infraestrutura (Postgres/Redis/RabbitMQ)
 ```bash
-cd infra
-docker compose up -d
-
+cd docker
+docker-compose up -d
 ```
 
-* **RabbitMQ UI:** `http://localhost:15672` (user: `occurrence_user`, pass: `occurrence_pass`)
+Isso irá subir:
+- **API** na porta `8089`
+- **PostgreSQL** na porta `5433`
+- **Redis** na porta `6379`
+- **RabbitMQ** na porta `5672` (Management UI: `15672`)
 
-### 2) API (Laravel)
+### Configuração Inicial
+
+Após subir os containers, execute:
 
 ```bash
-cd api
-cp .env.example .env
+# Entrar no container da API
+docker exec -it api_occurrence bash
+
+# Instalar dependências
 composer install
+
+# Configurar ambiente
+cp .env.example .env
+php artisan key:generate
+
+# Executar migrations
 php artisan migrate --seed
 
+# Gerar documentação Swagger
+php artisan l5-swagger:generate
 ```
 
-### 3) Worker (Laravel)
+## 📚 Documentação Swagger
 
-```bash
-cd worker
-cp .env.example .env
-composer install
+A documentação completa da API está disponível em:
 
 ```
-
-### 4) Frontend (React)
-
-```bash
-cd front
-npm install
-npm run dev
-
+http://localhost:8089/api/documentation
 ```
 
----
+O Swagger contém todas as rotas disponíveis, schemas de requisição/resposta e exemplos de uso.
 
-## 🏛️ Desenho de Arquitetura
+## 🔄 Como Funciona
 
-### Fluxo de Dados (Visão Macro)
+### Processamento Assíncrono
 
-1. **External System** envia um `POST` com `Idempotency-Key`.
-2. **API** valida a request, registra no **Command Inbox** (Status: `PENDING`) e publica no **RabbitMQ**.
-3. **Worker** consome a fila, aplica **Locks** de banco, executa a **State Machine** de domínio e atualiza o **PostgreSQL**.
-4. **Audit Log** é gerado na mesma transação da mudança de estado.
+O sistema utiliza processamento assíncrono para garantir alta performance e resiliência:
 
-### Organização de Código (DDD/Hexagonal)
-
-* `Domain/`: Entidades, Value Objects e regras de negócio puras.
-* `Application/`: Use Cases, Handlers e Portas (Interfaces).
-* `Infrastructure/`: Adaptadores de banco, fila e cache.
-* `app/Http/`: Controllers e Resources (exclusivo da API).
-
----
-
-## 🔄 Resiliência e Segurança
+1. **API recebe a requisição** → Valida autenticação, payload e idempotência
+2. **Registra o comando** → Salva no `command_inbox` com status `pending`
+3. **Publica na fila** → Envia comando para RabbitMQ
+4. **Retorna resposta** → API responde `202 Accepted` com `command_id`
+5. **Worker processa** → Consome a fila e executa as regras de negócio
+6. **Atualiza status** → Worker atualiza o comando para `success` ou `failed`
 
 ### Idempotência
 
-A chave de idempotência é composta por `idempotency_key + type + externalId`.
+Todas as operações de escrita exigem o header `Idempotency-Key` para evitar processamento duplicado. O sistema garante que requisições idênticas não sejam processadas mais de uma vez.
 
-* **Mesmo Payload:** Retorna o resultado já processado ou o status do processamento.
-* **Payload Diferente:** Retorna `409 Conflict` para evitar inconsistência de dados.
-* **Armazenamento:** Tabela `command_inbox` com TTL de 24h.
+### Arquitetura
 
-### Concorrência
-
-* **Lock Pessimista:** Uso de `lockForUpdate()` no banco de dados para serializar transições de status.
-* **State Machine:** Validação rigorosa (ex: não é permitido "Resolver" uma ocorrência que já consta como "Cancelada").
-
-### Auditoria
-
-O sistema registra automaticamente:
-
-* Entidade afetada, Status anterior/atual, Origem da mudança e `correlation_id`.
-* **Garantia Atomica:** A auditoria reside no mesmo commit transacional da alteração de estado.
+- **Domain Layer**: Entidades e regras de negócio puras
+- **Application Layer**: Use Cases e handlers
+- **Infrastructure Layer**: Adaptadores de banco, fila e cache
+- **API Layer**: Controllers e validações HTTP
 
 ---
-
-## 🧪 Testes Automatizados
-
-Para garantir a integridade das regras:
-
-```bash
-# Na pasta /api ou /worker
-php artisan test
-
-```
-
-**Cenários cobertos:**
-
-* Duplicidade de chaves de integração.
-* Simulação de múltiplas requisições paralelas (Race Conditions).
-* Validação de fluxos de status permitidos e proibidos.
-
----
-
-## 📈 Evolução Futura
-
-* [ ] **Outbox Pattern:** Para garantir que a publicação na fila nunca falhe se o banco gravar.
-* [ ] **CQRS:** Modelos de leitura otimizados em Redis.
-* [ ] **Observabilidade:** Implementação de OpenTelemetry para tracing distribuído.
-
----
-
-**Desenvolvido por Cauê — Software Developer**
