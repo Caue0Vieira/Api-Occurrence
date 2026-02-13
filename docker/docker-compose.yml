@@ -1,0 +1,67 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: api_occurrence
+    user: "1000:1000"
+    ports:
+      - "8089:80"
+      - "488:443"
+    volumes:
+      - ../src:/app
+    environment:
+      - PHP_DISPLAY_ERRORS=1
+      - PHP_MEMORY_LIMIT=512M
+      - WEB_DOCUMENT_ROOT=/app/public
+      - COMPOSER_VERSION=2
+      - XDEBUG_MODE=coverage
+    working_dir: /app
+    command: >
+      bash -c "
+      if [ ! -f composer.json ]; then composer create-project --prefer-dist laravel/laravel .; fi
+      && composer install
+      && mkdir -p storage/framework/{sessions,views,cache/data}
+      && chmod -R 775 storage bootstrap/cache
+      && chown -R 1000:1000 storage bootstrap/cache
+      && supervisord
+      "
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq_occurrence
+    environment:
+      RABBITMQ_DEFAULT_USER: occurrence_user
+      RABBITMQ_DEFAULT_PASS: occurrence_pass
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  postgres:
+    image: postgres:16
+    container_name: occurrence_management
+
+    environment:
+      POSTGRES_DB: occurrence_db
+      POSTGRES_USER: occurrence_user
+      POSTGRES_PASSWORD: occurrence_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+volumes:
+  pgdata:
+  rabbitmq_data:
+
+networks:
+  default:
+    external: true
+    name: internal

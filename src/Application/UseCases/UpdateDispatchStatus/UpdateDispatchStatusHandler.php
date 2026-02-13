@@ -1,0 +1,43 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Application\UseCases\UpdateDispatchStatus;
+
+use App\Jobs\ProcessUpdateDispatchStatusJob;
+use Application\DTOs\AcceptedCommandResult;
+use Domain\Idempotency\Repositories\CommandInboxWriteRepositoryInterface;
+
+readonly class UpdateDispatchStatusHandler
+{
+    public function __construct(
+        private CommandInboxWriteRepositoryInterface $commandInboxWriteRepository,
+    ) {
+    }
+
+    public function handle(UpdateDispatchStatusCommand $command): AcceptedCommandResult
+    {
+        $registration = $this->commandInboxWriteRepository->registerOrGet(
+            idempotencyKey: $command->idempotencyKey,
+            source: $command->source,
+            type: 'update_dispatch_status',
+            scopeKey: $command->dispatchId,
+            payload: $command->toPayload(),
+        );
+
+        if ($registration->shouldDispatch) {
+            ProcessUpdateDispatchStatusJob::dispatch(
+                source: $command->source,
+                type: 'update_dispatch_status',
+                scopeKey: $command->dispatchId,
+                payload: $command->toPayload(),
+                dispatchId: $command->dispatchId,
+                statusCode: $command->statusCode,
+                commandId: $registration->commandId,
+            );
+        }
+
+        return new AcceptedCommandResult(commandId: $registration->commandId);
+    }
+}
+

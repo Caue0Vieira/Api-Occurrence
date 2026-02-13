@@ -1,0 +1,1098 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "API de Ocorrências",
+        "description": "API para gerenciamento de ocorrências, despachos e comandos. Suporta integrações externas e sistemas internos.",
+        "contact": {
+            "email": "suporte@example.com"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8089",
+            "description": "Servidor de API"
+        }
+    ],
+    "paths": {
+        "/api/commands/{id}": {
+            "get": {
+                "tags": [
+                    "Commands"
+                ],
+                "summary": "Consultar status de um comando",
+                "description": "Retorna o status atual de um comando assíncrono. Útil para verificar o progresso de operações como criação de ocorrências, despachos, etc.",
+                "operationId": "getCommandStatus",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID único do comando (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "550e8400-e29b-41d4-a716-446655440002"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Status do comando retornado com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Command"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Comando não encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado - API Key inválida ou ausente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "apiKey": []
+                    }
+                ]
+            }
+        },
+        "/api/occurrences/{occurrenceId}/dispatches": {
+            "post": {
+                "tags": [
+                    "Dispatches"
+                ],
+                "summary": "Criar um novo despacho",
+                "description": "Cria um novo despacho para uma ocorrência específica. Retorna um comando que pode ser consultado posteriormente para verificar o status",
+                "operationId": "createDispatch",
+                "parameters": [
+                    {
+                        "name": "occurrenceId",
+                        "in": "path",
+                        "description": "ID único da ocorrência (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "550e8400-e29b-41d4-a716-446655440000"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateDispatchRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Comando de criação de despacho aceito para processamento",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Command"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Ocorrência não encontrada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erro de validação - Dados inválidos",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado - API Key inválida ou ausente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "apiKey": []
+                    }
+                ]
+            }
+        },
+        "/api/dispatches/{dispatchId}/close": {
+            "post": {
+                "tags": [
+                    "Dispatches"
+                ],
+                "summary": "Fechar um despacho",
+                "description": "Fecha um despacho específico. Retorna um comando que pode ser consultado posteriormente para verificar o status",
+                "operationId": "closeDispatch",
+                "parameters": [
+                    {
+                        "name": "dispatchId",
+                        "in": "path",
+                        "description": "ID único do despacho (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "550e8400-e29b-41d4-a716-446655440001"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Comando de fechamento de despacho aceito para processamento",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Command"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Despacho não encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado - API Key inválida ou ausente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "apiKey": []
+                    }
+                ]
+            }
+        },
+        "/api/dispatches/{dispatchId}/status": {
+            "patch": {
+                "tags": [
+                    "Dispatches"
+                ],
+                "summary": "Atualizar status de um despacho",
+                "description": "Atualiza o status de um despacho. Retorna um comando que pode ser consultado posteriormente para verificar o status",
+                "operationId": "updateDispatchStatus",
+                "parameters": [
+                    {
+                        "name": "dispatchId",
+                        "in": "path",
+                        "description": "ID único do despacho (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "550e8400-e29b-41d4-a716-446655440001"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateDispatchStatusRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Comando de atualização de status aceito para processamento",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Command"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Despacho não encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erro de validação - Status inválido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Requisição duplicada - Idempotency Key já utilizada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado - API Key inválida ou ausente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "apiKey": []
+                    },
+                    {
+                        "idempotencyKey": []
+                    }
+                ]
+            }
+        },
+        "/api/integrations/occurrences": {
+            "post": {
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Criar ocorrência (Integração Externa)",
+                "description": "Endpoint para sistemas externos criarem ocorrências. Requer API Key de integração externa. Retorna um comando que pode ser consultado posteriormente para verificar o status",
+                "operationId": "createOccurrence",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateOccurrenceRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Comando de criação de ocorrência aceito para processamento",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Command"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erro de validação - Dados inválidos",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Requisição duplicada - Idempotency Key já utilizada ou externalId já existe",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado - API Key inválida ou ausente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Muitas requisições - Rate limit excedido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "apiKey": []
+                    },
+                    {
+                        "idempotencyKey": []
+                    }
+                ]
+            }
+        },
+        "/api/occurrences": {
+            "get": {
+                "tags": [
+                    "Occurrences"
+                ],
+                "summary": "Listar ocorrências",
+                "description": "Retorna uma lista paginada de ocorrências com opções de filtro por status e tipo",
+                "operationId": "listOccurrences",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filtrar por status da ocorrência",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "pending"
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Filtrar por tipo de ocorrência",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "incendio_urbano"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Número de itens por página",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 50,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Número da página",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de ocorrências retornada com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OccurrenceListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado - API Key inválida ou ausente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Muitas requisições - Rate limit excedido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "apiKey": []
+                    }
+                ]
+            }
+        },
+        "/api/occurrences/{id}": {
+            "get": {
+                "tags": [
+                    "Occurrences"
+                ],
+                "summary": "Obter detalhes de uma ocorrência",
+                "description": "Retorna os detalhes completos de uma ocorrência específica, incluindo seus despachos",
+                "operationId": "getOccurrence",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID único da ocorrência (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "550e8400-e29b-41d4-a716-446655440000"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detalhes da ocorrência retornados com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OccurrenceResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Ocorrência não encontrada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado - API Key inválida ou ausente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "apiKey": []
+                    }
+                ]
+            }
+        },
+        "/api/occurrences/{id}/start": {
+            "post": {
+                "tags": [
+                    "Occurrences"
+                ],
+                "summary": "Iniciar processamento de uma ocorrência",
+                "description": "Inicia o processamento assíncrono de uma ocorrência. Retorna um comando que pode ser consultado posteriormente para verificar o status",
+                "operationId": "startOccurrence",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID único da ocorrência (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "550e8400-e29b-41d4-a716-446655440000"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Comando de início aceito para processamento",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Command"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Ocorrência não encontrada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Requisição duplicada - Idempotency Key já utilizada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado - API Key inválida ou ausente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "apiKey": []
+                    },
+                    {
+                        "idempotencyKey": []
+                    }
+                ]
+            }
+        },
+        "/api/occurrences/{id}/resolve": {
+            "post": {
+                "tags": [
+                    "Occurrences"
+                ],
+                "summary": "Resolver uma ocorrência",
+                "description": "Marca uma ocorrência como resolvida. Retorna um comando que pode ser consultado posteriormente para verificar o status",
+                "operationId": "resolveOccurrence",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID único da ocorrência (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "550e8400-e29b-41d4-a716-446655440000"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Comando de resolução aceito para processamento",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Command"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Ocorrência não encontrada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado - API Key inválida ou ausente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "apiKey": []
+                    }
+                ]
+            }
+        },
+        "/api/occurrences/types": {
+            "get": {
+                "tags": [
+                    "Occurrences"
+                ],
+                "summary": "Listar tipos de ocorrência disponíveis",
+                "description": "Retorna todos os tipos de ocorrência disponíveis no sistema",
+                "operationId": "getOccurrenceTypes",
+                "responses": {
+                    "200": {
+                        "description": "Lista de tipos de ocorrência retornada com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OccurrenceTypesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado - API Key inválida ou ausente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "apiKey": []
+                    }
+                ]
+            }
+        },
+        "/api/occurrences/status": {
+            "get": {
+                "tags": [
+                    "Occurrences"
+                ],
+                "summary": "Listar status de ocorrência disponíveis",
+                "description": "Retorna todos os status de ocorrência disponíveis no sistema",
+                "operationId": "getOccurrenceStatuses",
+                "responses": {
+                    "200": {
+                        "description": "Lista de status de ocorrência retornada com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OccurrenceStatusesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado - API Key inválida ou ausente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "apiKey": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Occurrence": {
+                "title": "Ocorrência",
+                "description": "Modelo de dados de uma ocorrência",
+                "properties": {
+                    "id": {
+                        "description": "Classe para definir schemas e configurações globais do Swagger/OpenAPI\n\nEsta classe contém todas as definições reutilizáveis de schemas, tags,\nsecurity schemes e informações gerais da API.",
+                        "type": "string",
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                    },
+                    "external_id": {
+                        "type": "string",
+                        "example": "EXT-12345"
+                    },
+                    "type_code": {
+                        "type": "string",
+                        "example": "incendio_urbano"
+                    },
+                    "type_name": {
+                        "type": "string",
+                        "example": "Incêndio Urbano"
+                    },
+                    "type_category": {
+                        "type": "string",
+                        "example": "emergency"
+                    },
+                    "status_code": {
+                        "type": "string",
+                        "example": "pending"
+                    },
+                    "status_name": {
+                        "type": "string",
+                        "example": "Pendente"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Incêndio em prédio residencial"
+                    },
+                    "reported_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-02-01T14:32:00-03:00"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-02-01T14:32:00-03:00"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-02-01T14:32:00-03:00"
+                    },
+                    "dispatches": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Dispatch"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "Dispatch": {
+                "title": "Despacho",
+                "description": "Modelo de dados de um despacho",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "example": "550e8400-e29b-41d4-a716-446655440001"
+                    },
+                    "resource_code": {
+                        "type": "string",
+                        "example": "ABT-12"
+                    },
+                    "status_code": {
+                        "type": "string",
+                        "example": "assigned"
+                    },
+                    "status_name": {
+                        "type": "string",
+                        "example": "Atribuído"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-02-01T14:32:00-03:00"
+                    }
+                },
+                "type": "object"
+            },
+            "Command": {
+                "title": "Comando",
+                "description": "Modelo de dados de um comando assíncrono",
+                "properties": {
+                    "command_id": {
+                        "type": "string",
+                        "example": "550e8400-e29b-41d4-a716-446655440002"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "processing",
+                            "completed",
+                            "failed"
+                        ],
+                        "example": "completed"
+                    },
+                    "result": {
+                        "description": "Resultado do comando quando status é 'completed'",
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "error": {
+                        "description": "Mensagem de erro quando status é 'failed'",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Error": {
+                "title": "Erro",
+                "description": "Modelo de resposta de erro",
+                "properties": {
+                    "error": {
+                        "type": "string",
+                        "example": "Validation failed"
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "The given data was invalid"
+                    },
+                    "errors": {
+                        "description": "Detalhes dos erros de validação",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "CreateOccurrenceRequest": {
+                "title": "Criar Ocorrência",
+                "description": "Dados necessários para criar uma nova ocorrência",
+                "required": [
+                    "externalId",
+                    "type",
+                    "description",
+                    "reportedAt"
+                ],
+                "properties": {
+                    "externalId": {
+                        "description": "ID externo da ocorrência (único por sistema externo)",
+                        "type": "string",
+                        "maxLength": 100,
+                        "example": "EXT-12345"
+                    },
+                    "type": {
+                        "description": "Tipo da ocorrência",
+                        "type": "string",
+                        "enum": [
+                            "incendio_urbano",
+                            "resgate_veicular",
+                            "atendimento_pre_hospitalar",
+                            "salvamento_aquatico",
+                            "falso_chamado",
+                            "vazamento_gas",
+                            "queda_arvore",
+                            "incendio_florestal"
+                        ],
+                        "example": "incendio_urbano"
+                    },
+                    "description": {
+                        "description": "Descrição detalhada da ocorrência",
+                        "type": "string",
+                        "maxLength": 5000,
+                        "minLength": 10,
+                        "example": "Incêndio em prédio residencial de 3 andares"
+                    },
+                    "reportedAt": {
+                        "description": "Data e hora do reporte da ocorrência (formato ISO 8601)",
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-02-01T14:32:00-03:00"
+                    }
+                },
+                "type": "object"
+            },
+            "CreateDispatchRequest": {
+                "title": "Criar Despacho",
+                "description": "Dados necessários para criar um novo despacho",
+                "required": [
+                    "resourceCode"
+                ],
+                "properties": {
+                    "resourceCode": {
+                        "description": "Código do recurso no formato XX-YY ou XXX-YY (ex: ABT-12, UR-05)",
+                        "type": "string",
+                        "pattern": "^[A-Z]{2,3}-\\d{2}$",
+                        "example": "ABT-12"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateDispatchStatusRequest": {
+                "title": "Atualizar Status do Despacho",
+                "description": "Dados necessários para atualizar o status de um despacho",
+                "required": [
+                    "statusCode"
+                ],
+                "properties": {
+                    "statusCode": {
+                        "description": "Novo status do despacho",
+                        "type": "string",
+                        "enum": [
+                            "assigned",
+                            "en_route",
+                            "on_site",
+                            "closed"
+                        ],
+                        "example": "on_site"
+                    }
+                },
+                "type": "object"
+            },
+            "OccurrenceListResponse": {
+                "title": "Lista de Ocorrências",
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Occurrence"
+                        }
+                    },
+                    "meta": {
+                        "description": "Metadados de paginação",
+                        "type": "object"
+                    },
+                    "links": {
+                        "description": "Links de paginação",
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "OccurrenceResponse": {
+                "title": "Ocorrência Detalhada",
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/Occurrence"
+                    }
+                },
+                "type": "object"
+            },
+            "OccurrenceTypesResponse": {
+                "title": "Tipos de Ocorrência",
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "code": {
+                                    "type": "string",
+                                    "example": "incendio_urbano"
+                                },
+                                "name": {
+                                    "type": "string",
+                                    "example": "Incêndio Urbano"
+                                },
+                                "category": {
+                                    "type": "string",
+                                    "example": "emergency"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "OccurrenceStatusesResponse": {
+                "title": "Status de Ocorrência",
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "code": {
+                                    "type": "string",
+                                    "example": "pending"
+                                },
+                                "name": {
+                                    "type": "string",
+                                    "example": "Pendente"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "securitySchemes": {
+            "apiKey": {
+                "type": "apiKey",
+                "description": "Chave de API para autenticacao.",
+                "name": "X-API-Key",
+                "in": "header"
+            },
+            "idempotencyKey": {
+                "type": "apiKey",
+                "description": "Chave de idempotencia para operacoes de escrita.",
+                "name": "Idempotency-Key",
+                "in": "header"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Commands",
+            "description": "Endpoints para consulta de status de comandos"
+        },
+        {
+            "name": "Dispatches",
+            "description": "Endpoints para gerenciamento de despachos"
+        },
+        {
+            "name": "Integrations",
+            "description": "Endpoints para integrações externas"
+        },
+        {
+            "name": "Occurrences",
+            "description": "Endpoints para gerenciamento de ocorrências"
+        }
+    ],
+    "security": [
+        {
+            "apiKey": []
+        }
+    ]
+}
