@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Infrastructure\Persistence;
 
-use Application\DTOs\CommandRegistrationResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Infrastructure\Persistence\Repositories\CommandInboxWriteRepository;
 use Tests\TestCase;
@@ -15,32 +14,34 @@ class CommandInboxEdgeCasesTest extends TestCase
     use RefreshDatabase;
     use CommandInboxTestHelpers;
 
-    public function test_expired_command_is_deleted_and_new_one_is_created(): void
+    public function test_expired_command_is_kept_and_existing_is_returned(): void
     {
         $repository = app(CommandInboxWriteRepository::class);
 
+        // Mesmo expirado, o registro deve ser reutilizado para evitar delecao de auditoria.
         $expiredCommandId = $this->createCommandInbox([
             'id' => '018f0e2b-f278-7be1-88f9-cf0d43edc901',
             'idempotency_key' => 'idem-expired-001',
             'scope_key' => 'ext-expired-1',
-            'payload' => ['externalId' => 'ext-expired-1'],
-            'expires_at' => now()->subHour(),
+            'payload' => ['externalId' => 'ext-expired-1', 'type' => 'incendio_urbano'],
+            'expires_at' => now()->subHour(), // Expirado
             'created_at' => now()->subDay(),
             'updated_at' => now()->subDay(),
         ]);
 
+        $newPayload = ['externalId' => 'ext-expired-1', 'type' => 'incendio_urbano'];
         $result = $repository->registerOrGet(
             idempotencyKey: 'idem-expired-001',
             source: 'external_system',
             type: 'create_occurrence',
             scopeKey: 'ext-expired-1',
-            payload: ['externalId' => 'ext-expired-1', 'type' => 'incendio_urbano'],
+            payload: $newPayload,
         );
 
-        $this->assertNotSame($expiredCommandId, $result->commandId);
+        $this->assertSame($expiredCommandId, $result->commandId);
         $this->assertTrue($result->shouldDispatch);
-        $this->assertDatabaseMissing('command_inbox', ['id' => $expiredCommandId]);
-        $this->assertDatabaseHas('command_inbox', ['id' => $result->commandId]);
+        $this->assertDatabaseHas('command_inbox', ['id' => $expiredCommandId]);
+        $this->assertDatabaseCount('command_inbox', 1);
     }
 
     public function test_already_processed_command_returns_existing_without_dispatch(): void
@@ -48,6 +49,7 @@ class CommandInboxEdgeCasesTest extends TestCase
         $repository = app(CommandInboxWriteRepository::class);
 
         $payload = ['externalId' => 'ext-processed-1', 'type' => 'incendio_urbano'];
+        // Garantir que o comando não está expirado
         $commandId = $this->createCommandInbox([
             'id' => '018f0e2b-f278-7be1-88f9-cf0d43edc902',
             'idempotency_key' => 'idem-processed-001',
@@ -56,6 +58,7 @@ class CommandInboxEdgeCasesTest extends TestCase
             'status' => 'processed',
             'result' => ['occurrenceId' => '018f0e2b-f278-7be1-88f9-cf0d43edc903'],
             'processed_at' => now()->subMinute(),
+            'expires_at' => now()->addHour(), // Não expirado
             'created_at' => now()->subHour(),
             'updated_at' => now()->subMinute(),
         ]);
@@ -77,6 +80,7 @@ class CommandInboxEdgeCasesTest extends TestCase
         $repository = app(CommandInboxWriteRepository::class);
 
         $payload = ['externalId' => 'ext-failed-1', 'type' => 'incendio_urbano'];
+        // Garantir que o comando não está expirado
         $commandId = $this->createCommandInbox([
             'id' => '018f0e2b-f278-7be1-88f9-cf0d43edc904',
             'idempotency_key' => 'idem-failed-001',
@@ -85,6 +89,7 @@ class CommandInboxEdgeCasesTest extends TestCase
             'status' => 'failed',
             'error_message' => 'Previous processing error',
             'processed_at' => now()->subMinute(),
+            'expires_at' => now()->addHour(), // Não expirado
             'created_at' => now()->subHour(),
             'updated_at' => now()->subMinute(),
         ]);
@@ -106,11 +111,13 @@ class CommandInboxEdgeCasesTest extends TestCase
         $repository = app(CommandInboxWriteRepository::class);
 
         $firstPayload = ['externalId' => 'ext-conflict-1', 'type' => 'incendio_urbano'];
+        // Garantir que o comando não está expirado
         $commandId = $this->createCommandInbox([
             'id' => '018f0e2b-f278-7be1-88f9-cf0d43edc905',
             'idempotency_key' => 'idem-conflict-001',
             'scope_key' => 'ext-conflict-1',
             'payload' => $firstPayload,
+            'expires_at' => now()->addHour(), // Não expirado
         ]);
 
         $differentPayload = ['externalId' => 'ext-conflict-1', 'type' => 'resgate_veicular'];

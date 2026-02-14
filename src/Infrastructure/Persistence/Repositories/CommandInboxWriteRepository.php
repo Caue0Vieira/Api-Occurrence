@@ -31,6 +31,15 @@ class CommandInboxWriteRepository implements CommandInboxWriteRepositoryInterfac
         $normalizedPayload = CommandNormalizationHelper::normalizePayload($payload);
         $payloadHash = $this->calculatePayloadHash($payload);
         $expiresAt = $this->getExpirationDate();
+        $existing = $this->findExistingCommand(
+            idempotencyKey: $normalizedKey,
+            type: $type,
+            scopeKey: $scopeKey
+        );
+
+        if ($existing !== null) {
+            return $this->buildResultFromExisting($existing, $normalizedKey, $scopeKey, $payloadHash);
+        }
 
         try {
             $commandId = $this->insertNewCommand(
@@ -62,16 +71,7 @@ class CommandInboxWriteRepository implements CommandInboxWriteRepositoryInterfac
                 throw $e;
             }
 
-            if ((string) $existing->payload_hash !== $payloadHash) {
-                throw IdempotencyConflictException::withPayloadMismatch($normalizedKey, $scopeKey);
-            }
-
-            $status = CommandStatus::fromString((string) $existing->status);
-
-            return new CommandRegistrationResult(
-                commandId: (string) $existing->id,
-                shouldDispatch: $status->shouldDispatch()
-            );
+            return $this->buildResultFromExisting($existing, $normalizedKey, $scopeKey, $payloadHash);
         }
     }
 
@@ -115,6 +115,24 @@ class CommandInboxWriteRepository implements CommandInboxWriteRepositoryInterfac
             ->where('type', $type)
             ->where('scope_key', $scopeKey)
             ->first();
+    }
+
+    private function buildResultFromExisting(
+        object $existing,
+        string $normalizedKey,
+        string $scopeKey,
+        string $payloadHash
+    ): CommandRegistrationResult {
+        if ((string) $existing->payload_hash !== $payloadHash) {
+            throw IdempotencyConflictException::withPayloadMismatch($normalizedKey, $scopeKey);
+        }
+
+        $status = CommandStatus::fromString((string) $existing->status);
+
+        return new CommandRegistrationResult(
+            commandId: (string) $existing->id,
+            shouldDispatch: $status->shouldDispatch()
+        );
     }
 
     /**
