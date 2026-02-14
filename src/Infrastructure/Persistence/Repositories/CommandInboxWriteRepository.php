@@ -29,7 +29,7 @@ class CommandInboxWriteRepository implements CommandInboxWriteRepositoryInterfac
     ): CommandRegistrationResult {
         $normalizedKey = CommandNormalizationHelper::normalizeIdempotencyKey($idempotencyKey);
         $normalizedPayload = CommandNormalizationHelper::normalizePayload($payload);
-        $payloadHash = $this->calculatePayloadHash($normalizedPayload);
+        $payloadHash = $this->calculatePayloadHash($payload);
         $expiresAt = $this->getExpirationDate();
 
         try {
