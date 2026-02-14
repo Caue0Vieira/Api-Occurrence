@@ -18,6 +18,7 @@ class ProcessUpdateDispatchStatusJob implements ShouldQueue
     use SerializesModels;
 
     public function __construct(
+        public string $idempotencyKey,
         public string $source,
         public string $type,
         public string $scopeKey,

@@ -27,6 +27,7 @@ readonly class UpdateDispatchStatusHandler
 
         if ($registration->shouldDispatch) {
             ProcessUpdateDispatchStatusJob::dispatch(
+                idempotencyKey: $command->idempotencyKey,
                 source: $command->source,
                 type: 'update_dispatch_status',
                 scopeKey: $command->dispatchId,
