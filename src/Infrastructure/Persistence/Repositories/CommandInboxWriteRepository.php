@@ -31,49 +31,59 @@ class CommandInboxWriteRepository implements CommandInboxWriteRepositoryInterfac
         $normalizedPayload = CommandNormalizationHelper::normalizePayload($payload);
         $payloadHash = $this->calculatePayloadHash($payload);
         $expiresAt = $this->getExpirationDate();
-        $existing = $this->findExistingCommand(
-            idempotencyKey: $normalizedKey,
-            type: $type,
-            scopeKey: $scopeKey
-        );
-
-        if ($existing !== null) {
-            return $this->buildResultFromExisting($existing, $normalizedKey, $scopeKey, $payloadHash);
-        }
-
-        try {
-            $commandId = $this->insertNewCommand(
-                idempotencyKey: $normalizedKey,
-                source: $source,
-                type: $type,
-                scopeKey: $scopeKey,
-                payload: $normalizedPayload,
-                payloadHash: $payloadHash,
-                expiresAt: $expiresAt
-            );
-
-            return new CommandRegistrationResult(
-                commandId: $commandId,
-                status: CommandStatus::RECEIVED->value,
-                shouldDispatch: true
-            );
-        } catch (QueryException $e) {
-            if (($e->errorInfo[0] ?? null) !== '23505') {
-                throw $e;
-            }
-
+        return DB::transaction(function () use (
+            $normalizedKey,
+            $source,
+            $type,
+            $scopeKey,
+            $normalizedPayload,
+            $payloadHash,
+            $expiresAt
+        ): CommandRegistrationResult {
             $existing = $this->findExistingCommand(
                 idempotencyKey: $normalizedKey,
                 type: $type,
                 scopeKey: $scopeKey
             );
 
-            if ($existing === null) {
-                throw $e;
+            if ($existing !== null) {
+                return $this->buildResultFromExisting($existing, $normalizedKey, $scopeKey, $payloadHash);
             }
 
-            return $this->buildResultFromExisting($existing, $normalizedKey, $scopeKey, $payloadHash);
-        }
+            try {
+                $commandId = $this->insertNewCommand(
+                    idempotencyKey: $normalizedKey,
+                    source: $source,
+                    type: $type,
+                    scopeKey: $scopeKey,
+                    payload: $normalizedPayload,
+                    payloadHash: $payloadHash,
+                    expiresAt: $expiresAt
+                );
+
+                return new CommandRegistrationResult(
+                    commandId: $commandId,
+                    status: CommandStatus::RECEIVED->value,
+                    shouldDispatch: true
+                );
+            } catch (QueryException $e) {
+                if (($e->errorInfo[0] ?? null) !== '23505') {
+                    throw $e;
+                }
+
+                $existing = $this->findExistingCommand(
+                    idempotencyKey: $normalizedKey,
+                    type: $type,
+                    scopeKey: $scopeKey
+                );
+
+                if ($existing === null) {
+                    throw $e;
+                }
+
+                return $this->buildResultFromExisting($existing, $normalizedKey, $scopeKey, $payloadHash);
+            }
+        });
     }
 
     /**
