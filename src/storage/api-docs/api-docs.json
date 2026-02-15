@@ -15,7 +15,7 @@
         }
     ],
     "paths": {
-        "/api/commands/{id}": {
+        "/api/commands/{command_id}": {
             "get": {
                 "tags": [
                     "Commands"
@@ -25,7 +25,7 @@
                 "operationId": "getCommandStatus",
                 "parameters": [
                     {
-                        "name": "id",
+                        "name": "command_id",
                         "in": "path",
                         "description": "ID único do comando (UUID)",
                         "required": true,
@@ -919,20 +919,28 @@
                     "status": {
                         "type": "string",
                         "enum": [
-                            "pending",
-                            "processed",
-                            "failed"
+                            "RECEIVED",
+                            "ENQUEUED",
+                            "PROCESSING",
+                            "SUCCEEDED",
+                            "FAILED"
                         ],
-                        "example": "completed"
+                        "example": "ENQUEUED"
                     },
                     "result": {
-                        "description": "Resultado do comando quando status é 'completed'",
+                        "description": "Resultado do comando quando status é 'SUCCEEDED'",
                         "type": "object",
                         "nullable": true
                     },
-                    "error": {
-                        "description": "Mensagem de erro quando status é 'failed'",
+                    "error_message": {
+                        "description": "Mensagem de erro quando status é 'FAILED'",
                         "type": "string",
+                        "nullable": true
+                    },
+                    "processed_at": {
+                        "description": "Data/hora em que o comando terminou processamento",
+                        "type": "string",
+                        "format": "date-time",
                         "nullable": true
                     }
                 },

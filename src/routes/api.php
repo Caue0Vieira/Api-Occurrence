@@ -54,6 +54,6 @@ Route::middleware([
     });
 
     Route::prefix('commands')->group(function () {
-        Route::get('/{id}', [CommandController::class, 'getCommandStatus']);
+        Route::get('/{command_id}', [CommandController::class, 'getCommandStatus']);
     });
 });

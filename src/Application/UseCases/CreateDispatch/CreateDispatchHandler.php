@@ -36,9 +36,19 @@ final readonly class CreateDispatchHandler
                 resourceCode: $command->resourceCode,
                 commandId: $registration->commandId,
             );
+
+            $this->commandInboxWriteRepository->markAsEnqueued($registration->commandId);
+
+            return new AcceptedCommandResult(
+                commandId: $registration->commandId,
+                status: \Domain\Idempotency\Enums\CommandStatus::ENQUEUED->value
+            );
         }
 
-        return new AcceptedCommandResult(commandId: $registration->commandId);
+        return new AcceptedCommandResult(
+            commandId: $registration->commandId,
+            status: $registration->status
+        );
     }
 }
 

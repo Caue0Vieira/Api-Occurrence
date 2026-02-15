@@ -21,7 +21,7 @@ trait CommandInboxTestHelpers
             'type' => 'create_occurrence',
             'scope_key' => 'ext-test-1',
             'payload' => ['externalId' => 'ext-test-1'],
-            'status' => 'pending',
+            'status' => 'RECEIVED',
             'result' => null,
             'error_message' => null,
             'processed_at' => null,

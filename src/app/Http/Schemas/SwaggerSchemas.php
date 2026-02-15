@@ -83,9 +83,10 @@ use OpenApi\Attributes as OA;
     description: "Modelo de dados de um comando assíncrono",
     properties: [
         new OA\Property(property: "command_id", type: "string", example: "550e8400-e29b-41d4-a716-446655440002"),
-        new OA\Property(property: "status", type: "string", enum: ["pending", "processed", "failed"], example: "completed"),
-        new OA\Property(property: "result", description: "Resultado do comando quando status é 'completed'", type: "object", nullable: true),
-        new OA\Property(property: "error", description: "Mensagem de erro quando status é 'failed'", type: "string", nullable: true)
+        new OA\Property(property: "status", type: "string", enum: ["RECEIVED", "ENQUEUED", "PROCESSING", "SUCCEEDED", "FAILED"], example: "ENQUEUED"),
+        new OA\Property(property: "result", description: "Resultado do comando quando status é 'SUCCEEDED'", type: "object", nullable: true),
+        new OA\Property(property: "error_message", description: "Mensagem de erro quando status é 'FAILED'", type: "string", nullable: true),
+        new OA\Property(property: "processed_at", description: "Data/hora em que o comando terminou processamento", type: "string", format: "date-time", nullable: true)
     ],
     type: "object"
 )]

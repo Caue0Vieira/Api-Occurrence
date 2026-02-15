@@ -13,7 +13,7 @@ class CommandApiTest extends TestCase
     use RefreshDatabase;
     use CommandInboxTestHelpers;
 
-    public function test_get_command_status_returns_pending_command(): void
+    public function test_get_command_status_returns_enqueued_command(): void
     {
         $commandId = $this->createCommandInbox([
             'id' => '018f0e2b-f278-7be1-88f9-cf0d43edc001',
@@ -22,7 +22,7 @@ class CommandApiTest extends TestCase
             'type' => 'start_occurrence',
             'scope_key' => 'occ-1001',
             'payload' => ['occurrenceId' => 'occ-1001'],
-            'status' => 'pending',
+            'status' => 'ENQUEUED',
         ]);
 
         $response = $this
@@ -31,15 +31,15 @@ class CommandApiTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJson([
-            'commandId' => $commandId,
-            'status' => 'pending',
+            'command_id' => $commandId,
+            'status' => 'ENQUEUED',
             'result' => null,
-            'errorMessage' => null,
-            'processedAt' => null,
+            'error_message' => null,
+            'processed_at' => null,
         ]);
     }
 
-    public function test_get_command_status_returns_processed_command_with_result(): void
+    public function test_get_command_status_returns_succeeded_command_with_result(): void
     {
         $commandId = $this->createCommandInbox([
             'id' => '018f0e2b-f278-7be1-88f9-cf0d43edc002',
@@ -48,7 +48,7 @@ class CommandApiTest extends TestCase
             'type' => 'create_occurrence',
             'scope_key' => 'ext-2002',
             'payload' => ['externalId' => 'ext-2002'],
-            'status' => 'processed',
+            'status' => 'SUCCEEDED',
             'result' => ['occurrenceId' => '018f0e2b-f278-7be1-88f9-cf0d43edc003'],
             'processed_at' => now(),
         ]);
@@ -59,12 +59,12 @@ class CommandApiTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJson([
-            'commandId' => $commandId,
-            'status' => 'processed',
+            'command_id' => $commandId,
+            'status' => 'SUCCEEDED',
             'result' => [
                 'occurrenceId' => '018f0e2b-f278-7be1-88f9-cf0d43edc003',
             ],
-            'errorMessage' => null,
+            'error_message' => null,
         ]);
     }
 

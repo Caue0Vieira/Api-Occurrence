@@ -43,8 +43,8 @@ class AutomationApiTest extends TestCase
         $first->assertStatus(202);
         $second->assertStatus(202);
 
-        $firstCommandId = (string) $first->json('commandId');
-        $secondCommandId = (string) $second->json('commandId');
+        $firstCommandId = (string) $first->json('command_id');
+        $secondCommandId = (string) $second->json('command_id');
 
         $this->assertNotEmpty($firstCommandId);
         $this->assertSame($firstCommandId, $secondCommandId);
@@ -55,7 +55,7 @@ class AutomationApiTest extends TestCase
             'source' => 'external_system',
             'type' => 'create_occurrence',
             'scope_key' => 'external-123',
-            'status' => 'pending',
+            'status' => 'ENQUEUED',
         ]);
 
         Queue::assertPushed(ProcessCreateOccurrenceJob::class, function (ProcessCreateOccurrenceJob $job) use ($firstCommandId): bool {
@@ -98,7 +98,7 @@ class AutomationApiTest extends TestCase
             ]);
 
         $response->assertStatus(202);
-        $commandId = (string) $response->json('commandId');
+        $commandId = (string) $response->json('command_id');
 
         $this->assertNotEmpty($commandId);
         $this->assertDatabaseHas('command_inbox', [
@@ -106,7 +106,7 @@ class AutomationApiTest extends TestCase
             'source' => 'internal_system',
             'type' => 'update_dispatch_status',
             'scope_key' => $dispatchId,
-            'status' => 'pending',
+            'status' => 'ENQUEUED',
         ]);
 
         Queue::assertPushed(ProcessUpdateDispatchStatusJob::class, function (ProcessUpdateDispatchStatusJob $job) use ($dispatchId, $commandId): bool {
@@ -132,7 +132,7 @@ class AutomationApiTest extends TestCase
             ->postJson('/api/integrations/occurrences', $payload);
 
         $response->assertStatus(202);
-        $commandId = (string) $response->json('commandId');
+        $commandId = (string) $response->json('command_id');
         $row = DB::table('command_inbox')->where('id', $commandId)->first();
 
         $this->assertNotNull($row);
@@ -158,15 +158,15 @@ class AutomationApiTest extends TestCase
         $first->assertStatus(202);
         $second->assertStatus(202);
 
-        $firstCommandId = (string) $first->json('commandId');
-        $secondCommandId = (string) $second->json('commandId');
+        $firstCommandId = (string) $first->json('command_id');
+        $secondCommandId = (string) $second->json('command_id');
 
         $this->assertSame($firstCommandId, $secondCommandId);
         $this->assertDatabaseCount('command_inbox', 1);
 
         $command = DB::table('command_inbox')->where('id', $firstCommandId)->first();
         $this->assertNotNull($command);
-        $this->assertSame('pending', $command->status);
+        $this->assertSame('ENQUEUED', $command->status);
 
         Queue::assertPushed(ProcessStartOccurrenceJob::class, function (ProcessStartOccurrenceJob $job) use ($firstCommandId, $occurrenceId): bool {
             return $job->commandId === $firstCommandId
@@ -221,19 +221,19 @@ class AutomationApiTest extends TestCase
             $responses[] = $this->withHeaders($headers)->postJson('/api/integrations/occurrences', $payload);
         }
 
-        $commandIds = array_map(fn($r) => (string) $r->json('commandId'), $responses);
+        $commandIds = array_map(fn($r) => (string) $r->json('command_id'), $responses);
         $uniqueCommandIds = array_unique($commandIds);
 
         foreach ($responses as $response) {
             $response->assertStatus(202);
         }
 
-        $this->assertCount(1, $uniqueCommandIds, 'Todas as requisições devem retornar o mesmo commandId');
+        $this->assertCount(1, $uniqueCommandIds, 'Todas as requisições devem retornar o mesmo command_id');
         $this->assertDatabaseCount('command_inbox', 1);
         
         $command = DB::table('command_inbox')->where('id', $uniqueCommandIds[0])->first();
         $this->assertNotNull($command);
-        $this->assertSame('pending', $command->status);
+        $this->assertSame('ENQUEUED', $command->status);
         
         Queue::assertPushed(ProcessCreateOccurrenceJob::class, function (ProcessCreateOccurrenceJob $job) use ($uniqueCommandIds): bool {
             return $job->commandId === $uniqueCommandIds[0];

@@ -55,7 +55,7 @@ class CommandInboxEdgeCasesTest extends TestCase
             'idempotency_key' => 'idem-processed-001',
             'scope_key' => 'ext-processed-1',
             'payload' => $payload,
-            'status' => 'processed',
+            'status' => 'SUCCEEDED',
             'result' => ['occurrenceId' => '018f0e2b-f278-7be1-88f9-cf0d43edc903'],
             'processed_at' => now()->subMinute(),
             'expires_at' => now()->addHour(), // Não expirado
@@ -86,7 +86,7 @@ class CommandInboxEdgeCasesTest extends TestCase
             'idempotency_key' => 'idem-failed-001',
             'scope_key' => 'ext-failed-1',
             'payload' => $payload,
-            'status' => 'failed',
+            'status' => 'FAILED',
             'error_message' => 'Previous processing error',
             'processed_at' => now()->subMinute(),
             'expires_at' => now()->addHour(), // Não expirado

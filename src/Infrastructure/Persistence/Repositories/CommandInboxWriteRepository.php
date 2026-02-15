@@ -54,6 +54,7 @@ class CommandInboxWriteRepository implements CommandInboxWriteRepositoryInterfac
 
             return new CommandRegistrationResult(
                 commandId: $commandId,
+                status: CommandStatus::RECEIVED->value,
                 shouldDispatch: true
             );
         } catch (QueryException $e) {
@@ -97,7 +98,7 @@ class CommandInboxWriteRepository implements CommandInboxWriteRepositoryInterfac
             'scope_key' => $scopeKey,
             'payload_hash' => $payloadHash,
             'payload' => json_encode($payload, JSON_THROW_ON_ERROR),
-            'status' => CommandStatus::PENDING->value,
+            'status' => CommandStatus::RECEIVED->value,
             'processed_at' => null,
             'expires_at' => $expiresAt,
             'created_at' => now(),
@@ -131,8 +132,23 @@ class CommandInboxWriteRepository implements CommandInboxWriteRepositoryInterfac
 
         return new CommandRegistrationResult(
             commandId: (string) $existing->id,
+            status: $status->value,
             shouldDispatch: $status->shouldDispatch()
         );
+    }
+
+    public function markAsEnqueued(string $commandId): void
+    {
+        DB::table('command_inbox')
+            ->where('id', $commandId)
+            ->whereIn('status', [
+                CommandStatus::RECEIVED->value,
+                CommandStatus::FAILED->value,
+            ])
+            ->update([
+                'status' => CommandStatus::ENQUEUED->value,
+                'updated_at' => now(),
+            ]);
     }
 
     /**

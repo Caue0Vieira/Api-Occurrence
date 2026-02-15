@@ -18,7 +18,7 @@ class CommandController extends Controller
     }
 
     #[OA\Get(
-        path: "/api/commands/{id}",
+        path: "/api/commands/{command_id}",
         operationId: "getCommandStatus",
         description: "Retorna o status atual de um comando assíncrono. Útil para verificar o progresso de operações como criação de ocorrências, despachos, etc.",
         summary: "Consultar status de um comando",
@@ -28,7 +28,7 @@ class CommandController extends Controller
         tags: ["Commands"],
         parameters: [
             new OA\Parameter(
-                name: "id",
+                name: "command_id",
                 description: "ID único do comando (UUID)",
                 in: "path",
                 required: true,
@@ -63,9 +63,9 @@ class CommandController extends Controller
             )
         ]
     )]
-    public function getCommandStatus(string $id): JsonResponse
+    public function getCommandStatus(string $command_id): JsonResponse
     {
-        $result = $this->commandService->getCommandStatus($id);
+        $result = $this->commandService->getCommandStatus($command_id);
 
         return response()->json($result->toArray());
     }

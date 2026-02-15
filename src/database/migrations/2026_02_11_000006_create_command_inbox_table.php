@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('source', 100);
             $table->string('type', 100);
             $table->json('payload');
-            $table->string('status', 50)->default('pending');
+            $table->string('status', 50)->default('RECEIVED');
             $table->json('result')->nullable();
             $table->text('error_message')->nullable();
             $table->timestamp('processed_at')->nullable();

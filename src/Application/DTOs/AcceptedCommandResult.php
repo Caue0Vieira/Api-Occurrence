@@ -8,14 +8,14 @@ final readonly class AcceptedCommandResult
 {
     public function __construct(
         public string $commandId,
-        public string $status = 'accepted',
+        public string $status,
     ) {
     }
 
     public function toArray(): array
     {
         return [
-            'commandId' => $this->commandId,
+            'command_id' => $this->commandId,
             'status' => $this->status,
         ];
     }

@@ -235,10 +235,12 @@ Content-Type: application/json
 ```json
 {
   "command_id": "01934b8f-...",
-  "occurrence_id": "01934b8f-...",
-  "status": "accepted"
+  "status": "ENQUEUED"
 }
 ```
+
+Use o endpoint `GET /api/commands/{command_id}` para acompanhar a evolução
+do comando (`RECEIVED`, `ENQUEUED`, `PROCESSING`, `SUCCEEDED`, `FAILED`).
 
 ---
 

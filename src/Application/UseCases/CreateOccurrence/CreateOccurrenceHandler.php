@@ -6,6 +6,7 @@ namespace Application\UseCases\CreateOccurrence;
 
 use App\Jobs\ProcessCreateOccurrenceJob;
 use Application\DTOs\AcceptedCommandResult;
+use Domain\Idempotency\Enums\CommandStatus;
 use Domain\Idempotency\Repositories\CommandInboxWriteRepositoryInterface;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -37,7 +38,10 @@ final readonly class CreateOccurrenceHandler
             );
 
             if (!$registration->shouldDispatch) {
-                return new AcceptedCommandResult(commandId: $registration->commandId);
+                return new AcceptedCommandResult(
+                    commandId: $registration->commandId,
+                    status: $registration->status
+                );
             }
 
             Log::info('[Handler] Dispatching job to queue', [
@@ -58,12 +62,16 @@ final readonly class CreateOccurrenceHandler
                 reportedAt: $command->reportedAt,
                 commandId: $registration->commandId,
             );
+            $this->commandInboxWriteRepository->markAsEnqueued($registration->commandId);
 
             Log::info('[Handler] Job dispatched successfully', [
                 'idempotencyKey' => $command->idempotencyKey,
             ]);
 
-            return new AcceptedCommandResult(commandId: $registration->commandId);
+            return new AcceptedCommandResult(
+                commandId: $registration->commandId,
+                status: CommandStatus::ENQUEUED->value
+            );
         } catch (Throwable $e) {
             Log::error('[Handler] Error in CreateOccurrenceHandler', [
                 'externalId' => $command->externalId,

@@ -26,11 +26,17 @@ services:
       && chown -R 1000:1000 storage bootstrap/cache
       && supervisord
       "
+    networks:
+      - default
+      - occurrence_shared
 
   redis:
     image: redis:7
     ports:
       - "6379:6379"
+    networks:
+      - default
+      - occurrence_shared
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -43,6 +49,9 @@ services:
       - "15672:15672"  # Management UI
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - default
+      - occurrence_shared
 
   postgres:
     image: postgres:16
@@ -57,6 +66,15 @@ services:
     ports:
       - "5433:5432"
 
+    networks:
+      - default
+      - occurrence_shared
+
 volumes:
   pgdata:
   rabbitmq_data:
+
+networks:
+  occurrence_shared:
+    external: true
+    name: occurrence_shared

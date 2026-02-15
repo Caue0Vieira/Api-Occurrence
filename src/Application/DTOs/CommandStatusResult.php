@@ -18,11 +18,11 @@ final readonly class CommandStatusResult
     public function toArray(): array
     {
         return [
-            'commandId' => $this->commandId,
+            'command_id' => $this->commandId,
             'status' => $this->status,
             'result' => $this->result,
-            'errorMessage' => $this->errorMessage,
-            'processedAt' => $this->processedAt,
+            'error_message' => $this->errorMessage,
+            'processed_at' => $this->processedAt,
         ];
     }
 }
