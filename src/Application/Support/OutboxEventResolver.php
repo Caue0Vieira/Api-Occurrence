@@ -6,11 +6,8 @@ namespace Application\Support;
 
 use InvalidArgumentException;
 
-final class OutboxEventResolver
+class OutboxEventResolver
 {
-    /**
-     * @return array{aggregateType: string, eventType: string}
-     */
     public function resolve(string $commandType): array
     {
         return match ($commandType) {
@@ -42,5 +39,3 @@ final class OutboxEventResolver
         };
     }
 }
-
-

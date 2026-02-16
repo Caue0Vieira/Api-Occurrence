@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Application\DTOs;
 
-final readonly class CommandRegistrationResult
+readonly class CommandRegistrationResult
 {
     public function __construct(
         public string $commandId,
@@ -14,4 +14,3 @@ final readonly class CommandRegistrationResult
     ) {
     }
 }
-

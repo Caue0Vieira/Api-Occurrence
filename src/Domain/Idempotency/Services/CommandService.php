@@ -8,7 +8,7 @@ use Application\DTOs\CommandStatusResult;
 use Domain\Idempotency\Exceptions\CommandNotFoundException;
 use Domain\Idempotency\Repositories\CommandInboxReadRepositoryInterface;
 
-final readonly class CommandService
+readonly class CommandService
 {
     public function __construct(
         private CommandInboxReadRepositoryInterface $commandInboxReadRepository,
@@ -26,4 +26,3 @@ final readonly class CommandService
         return $commandStatus;
     }
 }
-

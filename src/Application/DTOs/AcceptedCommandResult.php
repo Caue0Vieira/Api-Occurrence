@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Application\DTOs;
 
-final readonly class AcceptedCommandResult
+readonly class AcceptedCommandResult
 {
     public function __construct(
         public string $commandId,
@@ -20,4 +20,3 @@ final readonly class AcceptedCommandResult
         ];
     }
 }
-

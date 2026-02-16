@@ -31,7 +31,6 @@ readonly class DispatchService
         string $idempotencyKey,
         CommandSource $source = CommandSource::INTERNAL
     ): AcceptedCommandResult {
-        // Validar se a ocorrência existe antes de criar o comando
         $occurrence = $this->occurrenceRepository->findOccurrenceById(Uuid::fromString($occurrenceId));
         if ($occurrence === null) {
             throw OccurrenceNotFoundException::withId($occurrenceId);
@@ -57,7 +56,6 @@ readonly class DispatchService
             );
         }
 
-        // Se não é novo, significa que é um caso de idempotência (comando já existe)
         if (!$registration->isNew) {
             throw DuplicateCommandException::withCommandId($registration->commandId);
         }
@@ -90,7 +88,6 @@ readonly class DispatchService
             );
         }
 
-        // Se não é novo, significa que é um caso de idempotência (comando já existe)
         if (!$registration->isNew) {
             throw DuplicateCommandException::withCommandId($registration->commandId);
         }
@@ -127,7 +124,6 @@ readonly class DispatchService
             );
         }
 
-        // Se não é novo, significa que é um caso de idempotência (comando já existe)
         if (!$registration->isNew) {
             throw DuplicateCommandException::withCommandId($registration->commandId);
         }

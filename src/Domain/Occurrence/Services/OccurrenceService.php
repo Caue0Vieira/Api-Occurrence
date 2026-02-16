@@ -107,12 +107,10 @@ readonly class OccurrenceService
         ]);
 
         try {
-            // Validar se já existe ocorrência com o mesmo external_id
             if ($this->occurrenceRepository->existsByExternalId($externalId)) {
                 throw OccurrenceAlreadyExistsException::withExternalId($externalId);
             }
 
-            // Validar se já existe comando com o mesmo external_id mas idempotencyKey diferente
             $normalizedIdempotencyKey = \Infrastructure\Support\CommandNormalizationHelper::normalizeIdempotencyKey($idempotencyKey);
             if ($this->commandInboxReadRepository->existsByTypeAndExternalIdWithDifferentIdempotencyKey('create_occurrence', $externalId, $normalizedIdempotencyKey)) {
                 throw OccurrenceAlreadyExistsException::withExternalId($externalId);
@@ -142,7 +140,6 @@ readonly class OccurrenceService
                 );
             }
 
-            // Se não é novo, significa que é um caso de idempotência (comando já existe)
             if (!$registration->isNew) {
                 throw DuplicateCommandException::withCommandId($registration->commandId);
             }
@@ -178,7 +175,6 @@ readonly class OccurrenceService
         string $idempotencyKey,
         CommandSource $source = CommandSource::INTERNAL
     ): AcceptedCommandResult {
-        // Validar se a ocorrência existe antes de criar o comando
         $occurrence = $this->occurrenceRepository->findOccurrenceById(Uuid::fromString($occurrenceId));
         if ($occurrence === null) {
             throw OccurrenceNotFoundException::withId($occurrenceId);
@@ -201,7 +197,6 @@ readonly class OccurrenceService
             );
         }
 
-        // Se não é novo, significa que é um caso de idempotência (comando já existe)
         if (!$registration->isNew) {
             throw DuplicateCommandException::withCommandId($registration->commandId);
         }
@@ -217,7 +212,6 @@ readonly class OccurrenceService
         string $idempotencyKey,
         CommandSource $source = CommandSource::INTERNAL
     ): AcceptedCommandResult {
-        // Validar se a ocorrência existe antes de criar o comando
         $occurrence = $this->occurrenceRepository->findOccurrenceById(Uuid::fromString($occurrenceId));
         if ($occurrence === null) {
             throw OccurrenceNotFoundException::withId($occurrenceId);
@@ -240,7 +234,6 @@ readonly class OccurrenceService
             );
         }
 
-        // Se não é novo, significa que é um caso de idempotência (comando já existe)
         if (!$registration->isNew) {
             throw DuplicateCommandException::withCommandId($registration->commandId);
         }
@@ -251,19 +244,11 @@ readonly class OccurrenceService
         );
     }
 
-    /**
-     * Retorna todos os tipos de ocorrência disponíveis
-     * @return OccurrenceTypeCollection
-     */
     public function findOccurrenceTypes(): OccurrenceTypeCollection
     {
         return $this->occurrenceRepository->findOccurrenceTypes();
     }
 
-    /**
-     * Retorna todos os status de ocorrência disponíveis
-     * @return OccurrenceStatusCollection
-     */
     public function findOccurrenceStatuses(): OccurrenceStatusCollection
     {
         return $this->occurrenceRepository->findOccurrenceStatuses();

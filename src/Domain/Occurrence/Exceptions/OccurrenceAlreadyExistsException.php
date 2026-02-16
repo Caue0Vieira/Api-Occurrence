@@ -6,7 +6,7 @@ namespace Domain\Occurrence\Exceptions;
 
 use Domain\Shared\Exceptions\DomainException;
 
-final class OccurrenceAlreadyExistsException extends DomainException
+class OccurrenceAlreadyExistsException extends DomainException
 {
     public static function withExternalId(string $externalId): self
     {
@@ -16,4 +16,3 @@ final class OccurrenceAlreadyExistsException extends DomainException
         );
     }
 }
-

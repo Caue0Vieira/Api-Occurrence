@@ -8,7 +8,7 @@ use InvalidArgumentException;
 use Ramsey\Uuid\Uuid as RamseyUuid;
 use Ramsey\Uuid\UuidInterface;
 
-final readonly class Uuid
+readonly class Uuid
 {
     private function __construct(
         private UuidInterface $value
