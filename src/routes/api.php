@@ -40,6 +40,9 @@ Route::middleware([
         Route::post('/{id}/resolve', [OccurrenceController::class, 'resolve'])
             ->middleware(IdempotencyMiddleware::class);
 
+        Route::post('/{id}/cancel', [OccurrenceController::class, 'cancel'])
+            ->middleware(IdempotencyMiddleware::class);
+
         Route::post('/{id}/dispatches', [DispatchController::class, 'create'])
             ->middleware(IdempotencyMiddleware::class);
     });

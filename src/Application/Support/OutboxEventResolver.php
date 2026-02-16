@@ -23,6 +23,10 @@ class OutboxEventResolver
                 'aggregateType' => 'OccurrenceCommand',
                 'eventType' => 'OccurrenceResolvedRequested',
             ],
+            'cancel_occurrence' => [
+                'aggregateType' => 'OccurrenceCommand',
+                'eventType' => 'OccurrenceCancelledRequested',
+            ],
             'create_dispatch' => [
                 'aggregateType' => 'DispatchCommand',
                 'eventType' => 'DispatchCreateRequested',

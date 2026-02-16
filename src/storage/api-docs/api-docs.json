@@ -742,6 +742,89 @@
                 ]
             }
         },
+        "/api/occurrences/{id}/cancel": {
+            "post": {
+                "tags": [
+                    "Occurrences"
+                ],
+                "summary": "Cancelar uma ocorrência",
+                "description": "Cancela uma ocorrência. Retorna um comando que pode ser consultado posteriormente para verificar o status",
+                "operationId": "cancelOccurrence",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID único da ocorrência (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "550e8400-e29b-41d4-a716-446655440000"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Comando de cancelamento aceito para processamento",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Command"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request - Idempotency-Key ausente ou inválido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Ocorrência não encontrada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Requisição duplicada - Idempotency Key já utilizada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado - API Key inválida ou ausente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "apiKey": []
+                    },
+                    {
+                        "idempotencyKey": []
+                    }
+                ]
+            }
+        },
         "/api/occurrences/types": {
             "get": {
                 "tags": [

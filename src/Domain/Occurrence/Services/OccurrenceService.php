@@ -244,6 +244,43 @@ readonly class OccurrenceService
         );
     }
 
+    public function cancelOccurrence(
+        string $occurrenceId,
+        string $idempotencyKey,
+        CommandSource $source = CommandSource::INTERNAL
+    ): AcceptedCommandResult {
+        $occurrence = $this->occurrenceRepository->findOccurrenceById(Uuid::fromString($occurrenceId));
+        if ($occurrence === null) {
+            throw OccurrenceNotFoundException::withId($occurrenceId);
+        }
+
+        $registration = $this->commandInboxWriteRepository->registerOrGet(
+            idempotencyKey: $idempotencyKey,
+            source: $source->value,
+            type: 'cancel_occurrence',
+            scopeKey: $occurrenceId,
+            payload: ['occurrenceId' => $occurrenceId],
+        );
+
+        if ($registration->shouldDispatch && $registration->isNew) {
+            $this->registerOutboxEvent('cancel_occurrence', $registration->commandId);
+
+            return new AcceptedCommandResult(
+                commandId: $registration->commandId,
+                status: CommandStatus::RECEIVED->value
+            );
+        }
+
+        if (!$registration->isNew) {
+            throw DuplicateCommandException::withCommandId($registration->commandId);
+        }
+
+        return new AcceptedCommandResult(
+            commandId: $registration->commandId,
+            status: $registration->status
+        );
+    }
+
     public function findOccurrenceTypes(): OccurrenceTypeCollection
     {
         return $this->occurrenceRepository->findOccurrenceTypes();

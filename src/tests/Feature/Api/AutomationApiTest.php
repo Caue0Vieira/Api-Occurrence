@@ -171,6 +171,52 @@ class AutomationApiTest extends TestCase
         $this->assertDatabaseCount('outbox', 1);
     }
 
+    public function test_cancel_occurrence_keeps_idempotency(): void
+    {
+        $occurrenceId = '018f0e2b-f278-7be1-88f9-cf0d43edc800';
+        $this->createOccurrence($occurrenceId, 'ext-cancel-test-1', 'incendio_urbano', 'reported');
+
+        $headers = $this->withInternalApiHeaders('idem-cancel-occ-001');
+
+        $first = $this->withHeaders($headers)->postJson("/api/occurrences/{$occurrenceId}/cancel");
+        $second = $this->withHeaders($headers)->postJson("/api/occurrences/{$occurrenceId}/cancel");
+
+        $first->assertStatus(202);
+        $second->assertStatus(409); // Duplicado retorna 409
+
+        $firstCommandId = (string) $first->json('command_id');
+
+        // Segunda requisição deve retornar 409 com mensagem de comando duplicado
+        $second->assertJson([
+            'error' => "Comando duplicado - esta requisição já foi processada anteriormente (command_id: {$firstCommandId})",
+        ]);
+        $this->assertDatabaseCount('command_inbox', 1);
+
+        $command = DB::table('command_inbox')->where('id', $firstCommandId)->first();
+        $this->assertNotNull($command);
+        $this->assertSame('RECEIVED', $command->status);
+        $this->assertDatabaseHas('outbox', [
+            'aggregate_type' => 'OccurrenceCommand',
+            'aggregate_id' => $firstCommandId,
+            'event_type' => 'OccurrenceCancelledRequested',
+            'status' => 'PENDING',
+        ]);
+        $this->assertDatabaseCount('outbox', 1);
+    }
+
+    public function test_cancel_occurrence_returns_404_when_not_found(): void
+    {
+        $occurrenceId = '018f0e2b-f278-7be1-88f9-cf0d43edc999';
+        $headers = $this->withInternalApiHeaders('idem-cancel-occ-002');
+
+        $response = $this->withHeaders($headers)->postJson("/api/occurrences/{$occurrenceId}/cancel");
+
+        $response->assertStatus(404);
+        $response->assertJson([
+            'error' => "Occurrence not found: {$occurrenceId}",
+        ]);
+    }
+
     public function test_idempotency_conflict_returns_409_when_payload_differs(): void
     {
         $headers = $this->withExternalApiHeaders('idem-conflict-001');

@@ -322,6 +322,88 @@ class OccurrenceController extends Controller
         }
     }
 
+    #[OA\Post(
+        path: "/api/occurrences/{id}/cancel",
+        operationId: "cancelOccurrence",
+        description: "Cancela uma ocorrência. Retorna um comando que pode ser consultado posteriormente para verificar o status",
+        summary: "Cancelar uma ocorrência",
+        security: [
+            ["apiKey" => []],
+            ["idempotencyKey" => []]
+        ],
+        tags: ["Occurrences"],
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                description: "ID único da ocorrência (UUID)",
+                in: "path",
+                required: true,
+                schema: new OA\Schema(
+                    type: "string",
+                    format: "uuid",
+                    example: "550e8400-e29b-41d4-a716-446655440000"
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 202,
+                description: "Comando de cancelamento aceito para processamento",
+                content: new OA\JsonContent(
+                    ref: "#/components/schemas/Command"
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Bad Request - Idempotency-Key ausente ou inválido",
+                content: new OA\JsonContent(
+                    ref: "#/components/schemas/Error"
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Ocorrência não encontrada",
+                content: new OA\JsonContent(
+                    ref: "#/components/schemas/Error"
+                )
+            ),
+            new OA\Response(
+                response: 409,
+                description: "Requisição duplicada - Idempotency Key já utilizada",
+                content: new OA\JsonContent(
+                    ref: "#/components/schemas/Error"
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Não autenticado - API Key inválida ou ausente",
+                content: new OA\JsonContent(
+                    ref: "#/components/schemas/Error"
+                )
+            )
+        ]
+    )]
+    public function cancel(Request $request, string $id): JsonResponse
+    {
+        try {
+            $result = $this->occurrenceService->cancelOccurrence(
+                occurrenceId: $id,
+                idempotencyKey: (string) $request->attributes->get('idempotency_key'),
+                source: CommandSource::INTERNAL
+            );
+
+            return response()->json($result->toArray(), 202);
+        } catch (OccurrenceNotFoundException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        } catch (DuplicateCommandException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        }
+    }
+
     #[OA\Get(
         path: "/api/occurrences/types",
         operationId: "getOccurrenceTypes",
