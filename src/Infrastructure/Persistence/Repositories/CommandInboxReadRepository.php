@@ -29,5 +29,14 @@ class CommandInboxReadRepository implements CommandInboxReadRepositoryInterface
             processedAt: $row->processed_at,
         );
     }
+
+    public function existsByTypeAndExternalIdWithDifferentIdempotencyKey(string $type, string $externalId, string $idempotencyKey): bool
+    {
+        return DB::table('command_inbox')
+            ->where('type', $type)
+            ->where('scope_key', $externalId)
+            ->where('idempotency_key', '!=', $idempotencyKey)
+            ->exists();
+    }
 }
 

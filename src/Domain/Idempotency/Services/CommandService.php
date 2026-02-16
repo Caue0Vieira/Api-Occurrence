@@ -5,21 +5,25 @@ declare(strict_types=1);
 namespace Domain\Idempotency\Services;
 
 use Application\DTOs\CommandStatusResult;
-use Application\UseCases\GetCommandStatus\GetCommandStatusHandler;
-use Application\UseCases\GetCommandStatus\GetCommandStatusQuery;
+use Domain\Idempotency\Exceptions\CommandNotFoundException;
+use Domain\Idempotency\Repositories\CommandInboxReadRepositoryInterface;
 
 final readonly class CommandService
 {
     public function __construct(
-        private GetCommandStatusHandler $getCommandStatusHandler,
+        private CommandInboxReadRepositoryInterface $commandInboxReadRepository,
     ) {
     }
 
     public function getCommandStatus(string $commandId): CommandStatusResult
     {
-        $query = new GetCommandStatusQuery(commandId: $commandId);
+        $commandStatus = $this->commandInboxReadRepository->findByCommandId($commandId);
 
-        return $this->getCommandStatusHandler->handle($query);
+        if ($commandStatus === null) {
+            throw CommandNotFoundException::withId($commandId);
+        }
+
+        return $commandStatus;
     }
 }
 

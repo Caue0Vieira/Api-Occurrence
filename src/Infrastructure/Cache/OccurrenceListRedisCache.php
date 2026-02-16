@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Infrastructure\Cache;
 
+use Application\DTOs\ListOccurrencesFilter;
 use Application\DTOs\ListOccurrencesResult;
 use Application\Ports\OccurrenceListCacheInterface;
-use Application\UseCases\ListOccurrences\ListOccurrencesQuery;
 use Domain\Occurrence\Entities\Occurrence;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
@@ -15,7 +15,7 @@ use Throwable;
 
 class OccurrenceListRedisCache implements OccurrenceListCacheInterface
 {
-    public function get(ListOccurrencesQuery $query): ?ListOccurrencesResult
+    public function get(ListOccurrencesFilter $filter): ?ListOccurrencesResult
     {
         if (!config('api.occurrences_cache.enabled', true)) {
             return null;
@@ -24,7 +24,7 @@ class OccurrenceListRedisCache implements OccurrenceListCacheInterface
         try {
             $connection = Redis::connection(config('api.occurrences_cache.redis_connection', 'cache'));
             $version = (int) ($connection->get($this->versionKey()) ?? 1);
-            $cacheKey = $this->cacheKey($query, $version);
+            $cacheKey = $this->cacheKey($filter, $version);
             $cached = $connection->get($cacheKey);
 
             if ($cached === null) {
@@ -49,7 +49,7 @@ class OccurrenceListRedisCache implements OccurrenceListCacheInterface
                 ),
                 total: (int) ($payload['meta']['total'] ?? 0),
                 page: (int) ($payload['meta']['page'] ?? 1),
-                limit: (int) ($payload['meta']['limit'] ?? max(1, $query->limit)),
+                limit: (int) ($payload['meta']['limit'] ?? max(1, $filter->limit)),
             );
         } catch (Throwable $exception) {
             Log::warning('[Cache] Failed to read occurrence list cache, falling back to database', [
@@ -60,7 +60,7 @@ class OccurrenceListRedisCache implements OccurrenceListCacheInterface
         }
     }
 
-    public function put(ListOccurrencesQuery $query, ListOccurrencesResult $result): void
+    public function put(ListOccurrencesFilter $filter, ListOccurrencesResult $result): void
     {
         if (!config('api.occurrences_cache.enabled', true)) {
             return;
@@ -69,7 +69,7 @@ class OccurrenceListRedisCache implements OccurrenceListCacheInterface
         try {
             $connection = Redis::connection(config('api.occurrences_cache.redis_connection', 'cache'));
             $version = (int) ($connection->get($this->versionKey()) ?? 1);
-            $cacheKey = $this->cacheKey($query, $version);
+            $cacheKey = $this->cacheKey($filter, $version);
             $ttl = (int) config('api.occurrences_cache.ttl_seconds', 60);
             $payload = json_encode($result->toArray(), JSON_THROW_ON_ERROR);
 
@@ -92,19 +92,19 @@ class OccurrenceListRedisCache implements OccurrenceListCacheInterface
         return "{$prefix}:version";
     }
 
-    private function cacheKey(ListOccurrencesQuery $query, int $version): string
+    private function cacheKey(ListOccurrencesFilter $filter, int $version): string
     {
         $prefix = (string) config('api.occurrences_cache.key_prefix', 'occurrences:list');
 
         try {
             $signature = json_encode([
-                'status' => $query->status,
-                'type' => $query->type,
-                'limit' => $query->limit,
-                'page' => $query->page,
+                'status' => $filter->status,
+                'type' => $filter->type,
+                'limit' => $filter->limit,
+                'page' => $filter->page,
             ], JSON_THROW_ON_ERROR);
         } catch (JsonException) {
-            $signature = sprintf('%s|%s|%d|%d', $query->status, $query->type, $query->limit, $query->page);
+            $signature = sprintf('%s|%s|%d|%d', $filter->status, $filter->type, $filter->limit, $filter->page);
         }
 
         return sprintf('%s:v%d:%s', $prefix, $version, sha1($signature));

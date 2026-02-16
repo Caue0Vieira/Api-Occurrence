@@ -5,19 +5,23 @@ declare(strict_types=1);
 namespace Domain\Dispatch\Service;
 
 use Application\DTOs\AcceptedCommandResult;
-use Application\UseCases\CloseDispatch\CloseDispatchCommand;
-use Application\UseCases\CloseDispatch\CloseDispatchHandler;
-use Application\UseCases\CreateDispatch\CreateDispatchCommand;
-use Application\UseCases\CreateDispatch\CreateDispatchHandler;
-use Application\UseCases\UpdateDispatchStatus\UpdateDispatchStatusCommand;
-use Application\UseCases\UpdateDispatchStatus\UpdateDispatchStatusHandler;
+use Application\Support\OutboxEventResolver;
+use Domain\Idempotency\Enums\CommandSource;
+use Domain\Idempotency\Enums\CommandStatus;
+use Domain\Idempotency\Exceptions\DuplicateCommandException;
+use Domain\Idempotency\Repositories\CommandInboxWriteRepositoryInterface;
+use Domain\Occurrence\Exceptions\OccurrenceNotFoundException;
+use Domain\Occurrence\Repositories\OccurrenceRepositoryInterface;
+use Domain\Outbox\Repositories\OutboxWriteRepositoryInterface;
+use Domain\Shared\ValueObjects\Uuid;
 
 readonly class DispatchService
 {
     public function __construct(
-        private CreateDispatchHandler $createDispatchHandler,
-        private CloseDispatchHandler $closeDispatchHandler,
-        private UpdateDispatchStatusHandler $updateDispatchStatusHandler,
+        private CommandInboxWriteRepositoryInterface $commandInboxWriteRepository,
+        private OutboxWriteRepositoryInterface $outboxWriteRepository,
+        private OutboxEventResolver $outboxEventResolver,
+        private OccurrenceRepositoryInterface $occurrenceRepository,
     ) {
     }
 
@@ -25,45 +29,123 @@ readonly class DispatchService
         string $occurrenceId,
         string $resourceCode,
         string $idempotencyKey,
-        string $source = 'internal_system'
+        CommandSource $source = CommandSource::INTERNAL
     ): AcceptedCommandResult {
-        $command = new CreateDispatchCommand(
-            occurrenceId: $occurrenceId,
-            resourceCode: $resourceCode,
+        // Validar se a ocorrência existe antes de criar o comando
+        $occurrence = $this->occurrenceRepository->findOccurrenceById(Uuid::fromString($occurrenceId));
+        if ($occurrence === null) {
+            throw OccurrenceNotFoundException::withId($occurrenceId);
+        }
+
+        $registration = $this->commandInboxWriteRepository->registerOrGet(
             idempotencyKey: $idempotencyKey,
-            source: $source
+            source: $source->value,
+            type: 'create_dispatch',
+            scopeKey: $occurrenceId,
+            payload: [
+                'occurrenceId' => $occurrenceId,
+                'resourceCode' => $resourceCode,
+            ],
         );
 
-        return $this->createDispatchHandler->handle($command);
+        if ($registration->shouldDispatch && $registration->isNew) {
+            $this->registerOutboxEvent('create_dispatch', $registration->commandId);
+
+            return new AcceptedCommandResult(
+                commandId: $registration->commandId,
+                status: CommandStatus::RECEIVED->value
+            );
+        }
+
+        // Se não é novo, significa que é um caso de idempotência (comando já existe)
+        if (!$registration->isNew) {
+            throw DuplicateCommandException::withCommandId($registration->commandId);
+        }
+
+        return new AcceptedCommandResult(
+            commandId: $registration->commandId,
+            status: $registration->status
+        );
     }
 
     public function closeDispatch(
         string $dispatchId,
         string $idempotencyKey,
-        string $source = 'internal_system'
+        CommandSource $source = CommandSource::INTERNAL
     ): AcceptedCommandResult {
-        $command = new CloseDispatchCommand(
-            dispatchId: $dispatchId,
+        $registration = $this->commandInboxWriteRepository->registerOrGet(
             idempotencyKey: $idempotencyKey,
-            source: $source
+            source: $source->value,
+            type: 'close_dispatch',
+            scopeKey: $dispatchId,
+            payload: ['dispatchId' => $dispatchId],
         );
 
-        return $this->closeDispatchHandler->handle($command);
+        if ($registration->shouldDispatch && $registration->isNew) {
+            $this->registerOutboxEvent('close_dispatch', $registration->commandId);
+
+            return new AcceptedCommandResult(
+                commandId: $registration->commandId,
+                status: CommandStatus::RECEIVED->value
+            );
+        }
+
+        // Se não é novo, significa que é um caso de idempotência (comando já existe)
+        if (!$registration->isNew) {
+            throw DuplicateCommandException::withCommandId($registration->commandId);
+        }
+
+        return new AcceptedCommandResult(
+            commandId: $registration->commandId,
+            status: $registration->status
+        );
     }
 
     public function updateDispatchStatus(
         string $dispatchId,
         string $statusCode,
-        string $idempotencyKey = '',
-        string $source = 'internal_system'
+        string $idempotencyKey,
+        CommandSource $source = CommandSource::INTERNAL
     ): AcceptedCommandResult {
-        $command = new UpdateDispatchStatusCommand(
-            dispatchId: $dispatchId,
-            statusCode: $statusCode,
-            source: $source,
-            idempotencyKey: $idempotencyKey
+        $registration = $this->commandInboxWriteRepository->registerOrGet(
+            idempotencyKey: $idempotencyKey,
+            source: $source->value,
+            type: 'update_dispatch_status',
+            scopeKey: $dispatchId,
+            payload: [
+                'dispatchId' => $dispatchId,
+                'statusCode' => $statusCode,
+            ],
         );
 
-        return $this->updateDispatchStatusHandler->handle($command);
+        if ($registration->shouldDispatch && $registration->isNew) {
+            $this->registerOutboxEvent('update_dispatch_status', $registration->commandId);
+
+            return new AcceptedCommandResult(
+                commandId: $registration->commandId,
+                status: CommandStatus::RECEIVED->value
+            );
+        }
+
+        // Se não é novo, significa que é um caso de idempotência (comando já existe)
+        if (!$registration->isNew) {
+            throw DuplicateCommandException::withCommandId($registration->commandId);
+        }
+
+        return new AcceptedCommandResult(
+            commandId: $registration->commandId,
+            status: $registration->status
+        );
+    }
+
+    private function registerOutboxEvent(string $commandType, string $commandId): void
+    {
+        $event = $this->outboxEventResolver->resolve($commandType);
+
+        $this->outboxWriteRepository->addPendingEvent(
+            aggregateType: $event['aggregateType'],
+            aggregateId: $commandId,
+            eventType: $event['eventType'],
+        );
     }
 }

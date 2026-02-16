@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Infrastructure\Persistence;
 
+use Domain\Idempotency\Enums\CommandSource;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Infrastructure\Persistence\Repositories\CommandInboxWriteRepository;
 use Tests\TestCase;
@@ -20,7 +21,7 @@ class CommandInboxWriteRepositoryTest extends TestCase
 
         $first = $repository->registerOrGet(
             idempotencyKey: 'idem-concurrency-api-001',
-            source: 'external_system',
+            source: CommandSource::EXTERNAL->value,
             type: 'create_occurrence',
             scopeKey: 'external-concurrent-1',
             payload: [
@@ -33,7 +34,7 @@ class CommandInboxWriteRepositoryTest extends TestCase
 
         $second = $repository->registerOrGet(
             idempotencyKey: 'idem-concurrency-api-001',
-            source: 'external_system',
+            source: CommandSource::EXTERNAL->value,
             type: 'create_occurrence',
             scopeKey: 'external-concurrent-1',
             payload: [

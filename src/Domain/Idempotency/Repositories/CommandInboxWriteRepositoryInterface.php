@@ -16,6 +16,5 @@ interface CommandInboxWriteRepositoryInterface
         array $payload,
     ): CommandRegistrationResult;
 
-    public function markAsEnqueued(string $commandId): void;
 }
 

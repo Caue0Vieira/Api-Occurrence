@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Application\Ports;
 
+use Application\DTOs\ListOccurrencesFilter;
 use Application\DTOs\ListOccurrencesResult;
-use Application\UseCases\ListOccurrences\ListOccurrencesQuery;
 
 interface OccurrenceListCacheInterface
 {
-    public function get(ListOccurrencesQuery $query): ?ListOccurrencesResult;
+    public function get(ListOccurrencesFilter $filter): ?ListOccurrencesResult;
 
-    public function put(ListOccurrencesQuery $query, ListOccurrencesResult $result): void;
+    public function put(ListOccurrencesFilter $filter, ListOccurrencesResult $result): void;
 }
 
 

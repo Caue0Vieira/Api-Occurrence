@@ -920,12 +920,11 @@
                         "type": "string",
                         "enum": [
                             "RECEIVED",
-                            "ENQUEUED",
                             "PROCESSING",
                             "SUCCEEDED",
                             "FAILED"
                         ],
-                        "example": "ENQUEUED"
+                        "example": "RECEIVED"
                     },
                     "result": {
                         "description": "Resultado do comando quando status é 'SUCCEEDED'",

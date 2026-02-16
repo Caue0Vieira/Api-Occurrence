@@ -10,6 +10,7 @@ final readonly class CommandRegistrationResult
         public string $commandId,
         public string $status,
         public bool $shouldDispatch,
+        public bool $isNew = false,
     ) {
     }
 }

@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Resources\OccurrenceResource;
-use Application\UseCases\GetOccurrence\GetOccurrenceHandler;
-use Application\UseCases\GetOccurrence\GetOccurrenceQuery;
-use Application\UseCases\ListOccurrences\ListOccurrencesHandler;
-use Application\UseCases\ListOccurrences\ListOccurrencesQuery;
+use Domain\Idempotency\Enums\CommandSource;
+use Domain\Idempotency\Exceptions\DuplicateCommandException;
+use Domain\Occurrence\Exceptions\OccurrenceNotFoundException;
 use Domain\Occurrence\Services\OccurrenceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,8 +18,6 @@ use OpenApi\Attributes as OA;
 class OccurrenceController extends Controller
 {
     public function __construct(
-        private readonly ListOccurrencesHandler $listOccurrencesHandler,
-        private readonly GetOccurrenceHandler $getOccurrenceHandler,
         private readonly OccurrenceService $occurrenceService,
     ) {
     }
@@ -105,14 +102,12 @@ class OccurrenceController extends Controller
     )]
     public function index(Request $request): JsonResponse
     {
-        $query = new ListOccurrencesQuery(
+        $result = $this->occurrenceService->listOccurrencesWithCache(
             status: $request->query('status'),
             type: $request->query('type'),
-            limit: (int)$request->query('limit', 50),
-            page: (int)$request->query('page', 1),
+            limit: (int) $request->query('limit', 50),
+            page: (int) $request->query('page', 1),
         );
-
-        $result = $this->listOccurrencesHandler->handle($query);
 
         return response()->json($result->toArray());
     }
@@ -165,8 +160,7 @@ class OccurrenceController extends Controller
     )]
     public function show(string $id): JsonResponse
     {
-        $query = new GetOccurrenceQuery(occurrenceId: $id);
-        $occurrence = $this->getOccurrenceHandler->handle($query);
+        $occurrence = $this->occurrenceService->getOccurrenceByIdWithDispatchesOrFail($id);
 
         return (new OccurrenceResource($occurrence))->response();
     }
@@ -227,13 +221,23 @@ class OccurrenceController extends Controller
     )]
     public function start(Request $request, string $id): JsonResponse
     {
-        $result = $this->occurrenceService->startOccurrence(
-            occurrenceId: $id,
-            idempotencyKey: (string) $request->attributes->get('idempotency_key'),
-            source: 'internal_system'
-        );
+        try {
+            $result = $this->occurrenceService->startOccurrence(
+                occurrenceId: $id,
+                idempotencyKey: (string) $request->attributes->get('idempotency_key'),
+                source: CommandSource::INTERNAL
+            );
 
-        return response()->json($result->toArray(), 202);
+            return response()->json($result->toArray(), 202);
+        } catch (OccurrenceNotFoundException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        } catch (DuplicateCommandException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        }
     }
 
     #[OA\Post(
@@ -299,13 +303,23 @@ class OccurrenceController extends Controller
     )]
     public function resolve(Request $request, string $id): JsonResponse
     {
-        $result = $this->occurrenceService->resolveOccurrence(
-            occurrenceId: $id,
-            idempotencyKey: (string) $request->attributes->get('idempotency_key'),
-            source: 'internal_system'
-        );
+        try {
+            $result = $this->occurrenceService->resolveOccurrence(
+                occurrenceId: $id,
+                idempotencyKey: (string) $request->attributes->get('idempotency_key'),
+                source: CommandSource::INTERNAL
+            );
 
-        return response()->json($result->toArray(), 202);
+            return response()->json($result->toArray(), 202);
+        } catch (OccurrenceNotFoundException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        } catch (DuplicateCommandException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        }
     }
 
     #[OA\Get(

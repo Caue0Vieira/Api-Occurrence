@@ -12,13 +12,15 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 interface OccurrenceRepositoryInterface
 {
-    public function findById(Uuid $id): ?Occurrence;
+    public function findOccurrenceById(Uuid $id): ?Occurrence;
 
     public function listOccurrences(?string $statusCode = null, ?string $typeCode = null, int $perPage = 50, int $page = 1): LengthAwarePaginator;
 
-    public function findByIdWithDispatches(Uuid $id): ?Occurrence;
+    public function findOccurrenceByIdWithDispatches(Uuid $id): ?Occurrence;
 
     public function findOccurrenceTypes(): OccurrenceTypeCollection;
 
     public function findOccurrenceStatuses(): OccurrenceStatusCollection;
+
+    public function existsByExternalId(string $externalId): bool;
 }

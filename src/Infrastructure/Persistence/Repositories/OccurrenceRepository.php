@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
 
 class OccurrenceRepository implements OccurrenceRepositoryInterface
 {
-    public function findById(Uuid $id): ?Occurrence
+    public function findOccurrenceById(Uuid $id): ?Occurrence
     {
         $row = DB::table('occurrences')
             ->select(
@@ -88,9 +88,9 @@ class OccurrenceRepository implements OccurrenceRepositoryInterface
         );
     }
 
-    public function findByIdWithDispatches(Uuid $id): ?Occurrence
+    public function findOccurrenceByIdWithDispatches(Uuid $id): ?Occurrence
     {
-        $occ = $this->findById($id);
+        $occ = $this->findOccurrenceById($id);
         if (!$occ) {
             return null;
         }
@@ -140,5 +140,12 @@ class OccurrenceRepository implements OccurrenceRepositoryInterface
         );
 
         return new OccurrenceStatusCollection($status);
+    }
+
+    public function existsByExternalId(string $externalId): bool
+    {
+        return DB::table('occurrences')
+            ->where('external_id', $externalId)
+            ->exists();
     }
 }

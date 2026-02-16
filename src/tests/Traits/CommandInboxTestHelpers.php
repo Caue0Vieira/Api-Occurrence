@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Traits;
 
+use Domain\Idempotency\Enums\CommandSource;
 use Domain\Shared\ValueObjects\Uuid;
 use Illuminate\Support\Facades\DB;
 
@@ -17,7 +18,7 @@ trait CommandInboxTestHelpers
         $defaults = [
             'id' => Uuid::generate()->toString(),
             'idempotency_key' => 'idem-test-' . uniqid(),
-            'source' => 'external_system',
+            'source' => CommandSource::EXTERNAL->value,
             'type' => 'create_occurrence',
             'scope_key' => 'ext-test-1',
             'payload' => ['externalId' => 'ext-test-1'],
