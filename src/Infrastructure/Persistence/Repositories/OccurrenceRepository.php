@@ -37,6 +37,8 @@ class OccurrenceRepository implements OccurrenceRepositoryInterface
     public function listOccurrences(
         ?string $statusCode = null,
         ?string $typeCode = null,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
         int $perPage = 50,
         int $page = 1
     ): LengthAwarePaginator {
@@ -48,6 +50,14 @@ class OccurrenceRepository implements OccurrenceRepositoryInterface
 
         if ($typeCode !== null) {
             $baseQuery->where('occurrences.type_code', $typeCode);
+        }
+
+        if ($dateFrom !== null) {
+            $baseQuery->whereDate('occurrences.reported_at', '>=', $dateFrom);
+        }
+
+        if ($dateTo !== null) {
+            $baseQuery->whereDate('occurrences.reported_at', '<=', $dateTo);
         }
 
         // Contagem total sem JOINs para melhor performance

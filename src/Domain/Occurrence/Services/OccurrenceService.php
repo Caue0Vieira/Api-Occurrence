@@ -45,12 +45,16 @@ readonly class OccurrenceService
     public function listOccurrences(
         ?string $statusCode = null,
         ?string $typeCode = null,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
         int $perPage = 50,
         int $page = 1
     ): LengthAwarePaginator {
         return $this->occurrenceRepository->listOccurrences(
             statusCode: $statusCode,
             typeCode: $typeCode,
+            dateFrom: $dateFrom,
+            dateTo: $dateTo,
             perPage: $perPage,
             page: $page
         );
@@ -59,12 +63,16 @@ readonly class OccurrenceService
     public function listOccurrencesWithCache(
         ?string $status = null,
         ?string $type = null,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
         int $limit = 50,
         int $page = 1
     ): ListOccurrencesResult {
         $normalizedFilter = new ListOccurrencesFilter(
             status: $status,
             type: $type,
+            dateFrom: $dateFrom,
+            dateTo: $dateTo,
             limit: max(1, min($limit, 200)),
             page: max(1, $page),
         );
@@ -77,6 +85,8 @@ readonly class OccurrenceService
         $paginator = $this->listOccurrences(
             statusCode: $normalizedFilter->status,
             typeCode: $normalizedFilter->type,
+            dateFrom: $normalizedFilter->dateFrom,
+            dateTo: $normalizedFilter->dateTo,
             perPage: $normalizedFilter->limit,
             page: $normalizedFilter->page,
         );

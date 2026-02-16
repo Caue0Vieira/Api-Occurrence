@@ -100,11 +100,13 @@ class OccurrenceListRedisCache implements OccurrenceListCacheInterface
             $signature = json_encode([
                 'status' => $filter->status,
                 'type' => $filter->type,
+                 'dateFrom' => $filter->dateFrom,
+                'dateTo' => $filter->dateTo,
                 'limit' => $filter->limit,
                 'page' => $filter->page,
             ], JSON_THROW_ON_ERROR);
         } catch (JsonException) {
-            $signature = sprintf('%s|%s|%d|%d', $filter->status, $filter->type, $filter->limit, $filter->page);
+            $signature = sprintf('%s|%s|%s|%s|%d|%d', $filter->status, $filter->type, $filter->dateFrom, $filter->dateTo, $filter->limit, $filter->page);
         }
 
         return sprintf('%s:v%d:%s', $prefix, $version, sha1($signature));

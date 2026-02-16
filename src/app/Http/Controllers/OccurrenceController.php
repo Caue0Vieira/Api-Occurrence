@@ -25,7 +25,7 @@ class OccurrenceController extends Controller
     #[OA\Get(
         path: "/api/occurrences",
         operationId: "listOccurrences",
-        description: "Retorna uma lista paginada de ocorrências com opções de filtro por status e tipo",
+        description: "Retorna uma lista paginada de ocorrências com opções de filtro por status, tipo e data",
         summary: "Listar ocorrências",
         security: [
             ["apiKey" => []]
@@ -50,6 +50,28 @@ class OccurrenceController extends Controller
                 schema: new OA\Schema(
                     type: "string",
                     example: "incendio_urbano"
+                )
+            ),
+            new OA\Parameter(
+                name: "dateFrom",
+                description: "Filtrar ocorrências a partir desta data (formato: YYYY-MM-DD)",
+                in: "query",
+                required: false,
+                schema: new OA\Schema(
+                    type: "string",
+                    format: "date",
+                    example: "2024-01-01"
+                )
+            ),
+            new OA\Parameter(
+                name: "dateTo",
+                description: "Filtrar ocorrências até esta data (formato: YYYY-MM-DD)",
+                in: "query",
+                required: false,
+                schema: new OA\Schema(
+                    type: "string",
+                    format: "date",
+                    example: "2024-12-31"
                 )
             ),
             new OA\Parameter(
@@ -105,6 +127,8 @@ class OccurrenceController extends Controller
         $result = $this->occurrenceService->listOccurrencesWithCache(
             status: $request->query('status'),
             type: $request->query('type'),
+            dateFrom: $request->query('dateFrom'),
+            dateTo: $request->query('dateTo'),
             limit: (int) $request->query('limit', 50),
             page: (int) $request->query('page', 1),
         );

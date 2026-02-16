@@ -14,7 +14,7 @@ interface OccurrenceRepositoryInterface
 {
     public function findOccurrenceById(Uuid $id): ?Occurrence;
 
-    public function listOccurrences(?string $statusCode = null, ?string $typeCode = null, int $perPage = 50, int $page = 1): LengthAwarePaginator;
+    public function listOccurrences(?string $statusCode = null, ?string $typeCode = null, ?string $dateFrom = null, ?string $dateTo = null, int $perPage = 50, int $page = 1): LengthAwarePaginator;
 
     public function findOccurrenceByIdWithDispatches(Uuid $id): ?Occurrence;
 
