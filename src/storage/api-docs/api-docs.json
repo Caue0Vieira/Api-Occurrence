@@ -920,6 +920,7 @@
                         "type": "string",
                         "enum": [
                             "RECEIVED",
+                            "ENQUEUED",
                             "PROCESSING",
                             "SUCCEEDED",
                             "FAILED"
