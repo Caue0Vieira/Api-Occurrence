@@ -126,30 +126,30 @@ readonly class OccurrenceService
             ];
 
             $registration = $this->commandInboxWriteRepository->registerOrGet(
-            idempotencyKey: $idempotencyKey,
+                idempotencyKey: $idempotencyKey,
                 source: $source->value,
                 type: 'create_occurrence',
                 scopeKey: $externalId,
                 payload: $payload,
             );
 
-            if (!$registration->shouldDispatch || !$registration->isNew) {
-                // Se não é novo, significa que é um caso de idempotência (comando já existe)
-                if (!$registration->isNew) {
-                    throw DuplicateCommandException::withCommandId($registration->commandId);
-                }
-                
+            if ($registration->shouldDispatch && $registration->isNew) {
+                $this->registerOutboxEvent('create_occurrence', $registration->commandId);
+
                 return new AcceptedCommandResult(
                     commandId: $registration->commandId,
-                    status: $registration->status
+                    status: CommandStatus::RECEIVED->value
                 );
             }
 
-            $this->registerOutboxEvent('create_occurrence', $registration->commandId);
+            // Se não é novo, significa que é um caso de idempotência (comando já existe)
+            if (!$registration->isNew) {
+                throw DuplicateCommandException::withCommandId($registration->commandId);
+            }
 
             return new AcceptedCommandResult(
                 commandId: $registration->commandId,
-                status: CommandStatus::RECEIVED->value
+                status: $registration->status
             );
         } catch (Throwable $e) {
             Log::error('[Service] Error in CreateOccurrence', [
