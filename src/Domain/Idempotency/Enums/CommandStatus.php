@@ -13,13 +13,12 @@ enum CommandStatus: string
     case PROCESSING = 'PROCESSING';
     case SUCCEEDED = 'SUCCEEDED';
     case FAILED = 'FAILED';
-    case DUPLICATE = 'DUPLICATE';
 
     public function shouldDispatch(): bool
     {
         return match ($this) {
             self::RECEIVED, self::FAILED => true,
-            self::ENQUEUED, self::PROCESSING, self::SUCCEEDED, self::DUPLICATE => false,
+            self::ENQUEUED, self::PROCESSING, self::SUCCEEDED => false,
         };
     }
 
