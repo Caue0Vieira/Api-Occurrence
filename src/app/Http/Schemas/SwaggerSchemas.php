@@ -254,6 +254,4 @@ use OpenApi\Attributes as OA;
 )]
 class SwaggerSchemas
 {
-    // Esta classe existe apenas para conter as anotações OpenAPI
-    // As anotações são processadas pelo swagger-php durante a geração da documentação
 }

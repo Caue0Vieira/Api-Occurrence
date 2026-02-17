@@ -22,7 +22,6 @@ class IdempotencyMiddleware
     {
         $requiredMethods = config('api.idempotency.required_methods', ['POST', 'PUT', 'PATCH']);
 
-        // Verificar se o método HTTP requer idempotência
         if (in_array($request->method(), $requiredMethods, true)) {
             $idempotencyKey = $request->header(config('api.idempotency.header_name', 'Idempotency-Key'));
 
@@ -33,7 +32,6 @@ class IdempotencyMiddleware
                 ], 400);
             }
 
-            // Validar formato (mínimo 10 caracteres)
             if (strlen($idempotencyKey) < 10) {
                 return response()->json([
                     'error' => 'Invalid Idempotency-Key',
@@ -41,7 +39,6 @@ class IdempotencyMiddleware
                 ], 400);
             }
 
-            // Armazenar para uso no controller
             $request->attributes->set('idempotency_key', $idempotencyKey);
         }
 

@@ -60,10 +60,8 @@ class OccurrenceRepository implements OccurrenceRepositoryInterface
             $baseQuery->whereDate('occurrences.reported_at', '<=', $dateTo);
         }
 
-        // Contagem total sem JOINs para melhor performance
         $total = (clone $baseQuery)->count();
 
-        // Query com JOINs para buscar os dados
         $query = $baseQuery
             ->select(
                 'occurrences.*',

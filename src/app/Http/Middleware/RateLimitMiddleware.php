@@ -29,18 +29,14 @@ class RateLimitMiddleware
         $apiKey = $request->attributes->get('api_key', 'unknown');
         $limit = config('api.rate_limit.requests_per_minute', 100);
 
-        // Chave única para rate limiting
         $rateLimitKey = "rate_limit:api:{$apiKey}:" . now()->format('Y-m-d-H-i');
 
-        // Incrementar contador
         $currentCount = Redis::incr($rateLimitKey);
 
-        // Definir expiração de 1 minuto (60 segundos)
         if ($currentCount === 1) {
             Redis::expire($rateLimitKey, 60);
         }
 
-        // Verificar se excedeu o limite
         if ($currentCount > $limit) {
             return response()->json([
                 'error' => 'Rate limit exceeded',
@@ -49,7 +45,6 @@ class RateLimitMiddleware
             ], 429)->header('Retry-After', '60');
         }
 
-        // Adicionar headers de rate limit
         $response = $next($request);
 
         $response->headers->set('X-RateLimit-Limit', (string) $limit);

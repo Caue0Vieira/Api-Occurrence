@@ -10,7 +10,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class OccurrenceResource extends JsonResource
 {
-    /** @var Occurrence */
     public $resource;
 
     public function toArray(Request $request): array
