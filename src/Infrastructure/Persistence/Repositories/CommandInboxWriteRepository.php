@@ -64,7 +64,8 @@ class CommandInboxWriteRepository implements CommandInboxWriteRepositoryInterfac
                 return new CommandRegistrationResult(
                     commandId: $commandId,
                     status: CommandStatus::RECEIVED->value,
-                    shouldDispatch: true
+                    shouldDispatch: true,
+                    isNew: true
                 );
             } catch (QueryException $e) {
                 if (($e->errorInfo[0] ?? null) !== '23505') {
@@ -143,22 +144,9 @@ class CommandInboxWriteRepository implements CommandInboxWriteRepositoryInterfac
         return new CommandRegistrationResult(
             commandId: (string) $existing->id,
             status: $status->value,
-            shouldDispatch: $status->shouldDispatch()
+            shouldDispatch: $status->shouldDispatch(),
+            isNew: false
         );
-    }
-
-    public function markAsEnqueued(string $commandId): void
-    {
-        DB::table('command_inbox')
-            ->where('id', $commandId)
-            ->whereIn('status', [
-                CommandStatus::RECEIVED->value,
-                CommandStatus::FAILED->value,
-            ])
-            ->update([
-                'status' => CommandStatus::ENQUEUED->value,
-                'updated_at' => now(),
-            ]);
     }
 
     /**

@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Resources\OccurrenceResource;
-use Application\UseCases\GetOccurrence\GetOccurrenceHandler;
-use Application\UseCases\GetOccurrence\GetOccurrenceQuery;
-use Application\UseCases\ListOccurrences\ListOccurrencesHandler;
-use Application\UseCases\ListOccurrences\ListOccurrencesQuery;
+use Domain\Idempotency\Enums\CommandSource;
+use Domain\Idempotency\Exceptions\DuplicateCommandException;
+use Domain\Occurrence\Exceptions\OccurrenceNotFoundException;
 use Domain\Occurrence\Services\OccurrenceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,8 +18,6 @@ use OpenApi\Attributes as OA;
 class OccurrenceController extends Controller
 {
     public function __construct(
-        private readonly ListOccurrencesHandler $listOccurrencesHandler,
-        private readonly GetOccurrenceHandler $getOccurrenceHandler,
         private readonly OccurrenceService $occurrenceService,
     ) {
     }
@@ -28,7 +25,7 @@ class OccurrenceController extends Controller
     #[OA\Get(
         path: "/api/occurrences",
         operationId: "listOccurrences",
-        description: "Retorna uma lista paginada de ocorrências com opções de filtro por status e tipo",
+        description: "Retorna uma lista paginada de ocorrências com opções de filtro por status, tipo e data",
         summary: "Listar ocorrências",
         security: [
             ["apiKey" => []]
@@ -53,6 +50,28 @@ class OccurrenceController extends Controller
                 schema: new OA\Schema(
                     type: "string",
                     example: "incendio_urbano"
+                )
+            ),
+            new OA\Parameter(
+                name: "dateFrom",
+                description: "Filtrar ocorrências a partir desta data (formato: YYYY-MM-DD)",
+                in: "query",
+                required: false,
+                schema: new OA\Schema(
+                    type: "string",
+                    format: "date",
+                    example: "2024-01-01"
+                )
+            ),
+            new OA\Parameter(
+                name: "dateTo",
+                description: "Filtrar ocorrências até esta data (formato: YYYY-MM-DD)",
+                in: "query",
+                required: false,
+                schema: new OA\Schema(
+                    type: "string",
+                    format: "date",
+                    example: "2024-12-31"
                 )
             ),
             new OA\Parameter(
@@ -105,14 +124,14 @@ class OccurrenceController extends Controller
     )]
     public function index(Request $request): JsonResponse
     {
-        $query = new ListOccurrencesQuery(
+        $result = $this->occurrenceService->listOccurrencesWithCache(
             status: $request->query('status'),
             type: $request->query('type'),
-            limit: (int)$request->query('limit', 50),
-            page: (int)$request->query('page', 1),
+            dateFrom: $request->query('dateFrom'),
+            dateTo: $request->query('dateTo'),
+            limit: (int) $request->query('limit', 50),
+            page: (int) $request->query('page', 1),
         );
-
-        $result = $this->listOccurrencesHandler->handle($query);
 
         return response()->json($result->toArray());
     }
@@ -165,8 +184,7 @@ class OccurrenceController extends Controller
     )]
     public function show(string $id): JsonResponse
     {
-        $query = new GetOccurrenceQuery(occurrenceId: $id);
-        $occurrence = $this->getOccurrenceHandler->handle($query);
+        $occurrence = $this->occurrenceService->getOccurrenceByIdWithDispatchesOrFail($id);
 
         return (new OccurrenceResource($occurrence))->response();
     }
@@ -227,13 +245,23 @@ class OccurrenceController extends Controller
     )]
     public function start(Request $request, string $id): JsonResponse
     {
-        $result = $this->occurrenceService->startOccurrence(
-            occurrenceId: $id,
-            idempotencyKey: (string) $request->attributes->get('idempotency_key'),
-            source: 'internal_system'
-        );
+        try {
+            $result = $this->occurrenceService->startOccurrence(
+                occurrenceId: $id,
+                idempotencyKey: (string) $request->attributes->get('idempotency_key'),
+                source: CommandSource::INTERNAL
+            );
 
-        return response()->json($result->toArray(), 202);
+            return response()->json($result->toArray(), 202);
+        } catch (OccurrenceNotFoundException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        } catch (DuplicateCommandException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        }
     }
 
     #[OA\Post(
@@ -299,13 +327,105 @@ class OccurrenceController extends Controller
     )]
     public function resolve(Request $request, string $id): JsonResponse
     {
-        $result = $this->occurrenceService->resolveOccurrence(
-            occurrenceId: $id,
-            idempotencyKey: (string) $request->attributes->get('idempotency_key'),
-            source: 'internal_system'
-        );
+        try {
+            $result = $this->occurrenceService->resolveOccurrence(
+                occurrenceId: $id,
+                idempotencyKey: (string) $request->attributes->get('idempotency_key'),
+                source: CommandSource::INTERNAL
+            );
 
-        return response()->json($result->toArray(), 202);
+            return response()->json($result->toArray(), 202);
+        } catch (OccurrenceNotFoundException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        } catch (DuplicateCommandException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        }
+    }
+
+    #[OA\Post(
+        path: "/api/occurrences/{id}/cancel",
+        operationId: "cancelOccurrence",
+        description: "Cancela uma ocorrência. Retorna um comando que pode ser consultado posteriormente para verificar o status",
+        summary: "Cancelar uma ocorrência",
+        security: [
+            ["apiKey" => []],
+            ["idempotencyKey" => []]
+        ],
+        tags: ["Occurrences"],
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                description: "ID único da ocorrência (UUID)",
+                in: "path",
+                required: true,
+                schema: new OA\Schema(
+                    type: "string",
+                    format: "uuid",
+                    example: "550e8400-e29b-41d4-a716-446655440000"
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 202,
+                description: "Comando de cancelamento aceito para processamento",
+                content: new OA\JsonContent(
+                    ref: "#/components/schemas/Command"
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Bad Request - Idempotency-Key ausente ou inválido",
+                content: new OA\JsonContent(
+                    ref: "#/components/schemas/Error"
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Ocorrência não encontrada",
+                content: new OA\JsonContent(
+                    ref: "#/components/schemas/Error"
+                )
+            ),
+            new OA\Response(
+                response: 409,
+                description: "Requisição duplicada - Idempotency Key já utilizada",
+                content: new OA\JsonContent(
+                    ref: "#/components/schemas/Error"
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Não autenticado - API Key inválida ou ausente",
+                content: new OA\JsonContent(
+                    ref: "#/components/schemas/Error"
+                )
+            )
+        ]
+    )]
+    public function cancel(Request $request, string $id): JsonResponse
+    {
+        try {
+            $result = $this->occurrenceService->cancelOccurrence(
+                occurrenceId: $id,
+                idempotencyKey: (string) $request->attributes->get('idempotency_key'),
+                source: CommandSource::INTERNAL
+            );
+
+            return response()->json($result->toArray(), 202);
+        } catch (OccurrenceNotFoundException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        } catch (DuplicateCommandException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        }
     }
 
     #[OA\Get(

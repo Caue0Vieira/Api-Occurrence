@@ -59,11 +59,12 @@ O Swagger contém todas as rotas disponíveis, schemas de requisição/resposta 
 O sistema utiliza processamento assíncrono para garantir alta performance e resiliência:
 
 1. **API recebe a requisição** → Valida autenticação, payload e idempotência
-2. **Registra o comando** → Salva no `command_inbox` com status `pending`
-3. **Publica na fila** → Envia comando para RabbitMQ
-4. **Retorna resposta** → API responde `202 Accepted` com `command_id`
-5. **Worker processa** → Consome a fila e executa as regras de negócio
-6. **Atualiza status** → Worker atualiza o comando para `success` ou `failed`
+2. **Registra o comando** → Salva no `command_inbox` com status `RECEIVED`
+3. **Registra evento de saída** → Salva no `outbox` com status `PENDING`
+4. **Retorna resposta** → API responde `202 Accepted` com `command_id` e `status: RECEIVED`
+5. **Worker publicador processa outbox** → Lê eventos `PENDING` e publica na fila
+6. **Worker de processamento consome a fila** → Executa as regras de negócio
+7. **Atualiza status** → Worker atualiza o comando para `PROCESSING`, `SUCCEEDED` ou `FAILED`
 
 ### Idempotência
 
@@ -72,8 +73,9 @@ Todas as operações de escrita exigem o header `Idempotency-Key` para evitar pr
 ### Arquitetura
 
 - **Domain Layer**: Entidades e regras de negócio puras
-- **Application Layer**: Use Cases e handlers
+- **Application Layer**: DTOs, portas e utilitários de aplicação
 - **Infrastructure Layer**: Adaptadores de banco, fila e cache
 - **API Layer**: Controllers e validações HTTP
+- **Fluxo principal**: `Controller -> Service -> RepoInterface -> Repository`
 
 ---

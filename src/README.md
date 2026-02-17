@@ -32,7 +32,7 @@ API HTTP responsável por:
 - ✅ Gerenciar ciclo de vida das ocorrências
 - ✅ Despachar equipes/viaturas
 - ✅ Garantir idempotência nas operações
-- ✅ Publicar eventos no RabbitMQ para processamento assíncrono
+- ✅ Registrar comandos e eventos de saída (Outbox) para processamento assíncrono
 - ✅ Retornar respostas rápidas (202 Accepted)
 
 ---
@@ -55,7 +55,7 @@ API HTTP responsável por:
                      │
 ┌────────────────────▼────────────────────────────────────┐
 │                    Application                           │
-│       (Use Cases: Commands, Handlers, Queries)          │
+│       (DTOs, Ports e Support utilities)                 │
 └────────────────────┬────────────────────────────────────┘
                      │
 ┌────────────────────▼────────────────────────────────────┐
@@ -84,6 +84,12 @@ API HTTP responsável por:
 - **Idempotency-Key**: Obrigatório em operações de escrita (POST/PUT/PATCH)
 - **Command Inbox**: Registra comandos para evitar duplicação
 - **TTL**: 24 horas para cache de idempotência
+
+### 📤 Outbox Pattern (publicação assíncrona)
+- **Outbox**: A API registra eventos de publicação na tabela `outbox`
+- **Status inicial**: Eventos entram como `PENDING`
+- **Desacoplamento**: A API não publica diretamente no broker
+- **Worker publicador**: Processo dedicado consulta `outbox` e envia para fila
 
 ### 📊 Domínio
 
@@ -235,12 +241,12 @@ Content-Type: application/json
 ```json
 {
   "command_id": "01934b8f-...",
-  "status": "ENQUEUED"
+  "status": "RECEIVED"
 }
 ```
 
 Use o endpoint `GET /api/commands/{command_id}` para acompanhar a evolução
-do comando (`RECEIVED`, `ENQUEUED`, `PROCESSING`, `SUCCEEDED`, `FAILED`).
+do comando (`RECEIVED`, `PROCESSING`, `SUCCEEDED`, `FAILED`).
 
 ---
 
@@ -341,54 +347,24 @@ php artisan test --testsuite Feature
 ```
 src/
 ├── app/
-│   ├── Domain/                      # 🎯 Camada de Domínio
-│   │   ├── Occurrence/
-│   │   │   ├── Models/
-│   │   │   ├── ValueObjects/
-│   │   │   ├── Repositories/        # Interfaces (Portas)
-│   │   │   ├── Events/
-│   │   │   └── Exceptions/
-│   │   └── Shared/
-│   │
-│   ├── Application/                 # 📋 Camada de Aplicação
-│   │   ├── UseCases/
-│   │   │   ├── CreateOccurrence/
-│   │   │   ├── StartOccurrence/
-│   │   │   ├── ResolveOccurrence/
-│   │   │   ├── CreateDispatch/
-│   │   │   └── ListOccurrences/
-│   │   ├── DTOs/
-│   │   └── Services/                # Interfaces
-│   │
-│   ├── Infrastructure/              # 🔌 Camada de Infraestrutura
-│   │   ├── Persistence/
-│   │   │   ├── Eloquent/
-│   │   │   └── Repositories/        # Implementações
-│   │   ├── Messaging/
-│   │   │   └── RabbitMQ/
-│   │   └── Services/
-│   │
-│   └── Presentation/                # 🌐 Camada de Apresentação
-│       ├── Http/
-│       │   ├── Controllers/
-│       │   ├── Middleware/
-│       │   ├── Requests/
-│       │   └── Resources/
-│       └── Providers/
-│
-├── config/                          # Configurações
-│   ├── api.php
-│   └── rabbitmq.php
-│
-├── database/
-│   └── migrations/
-│
+│   ├── Http/                        # Controllers, requests e recursos
+│   └── Providers/                   # Bindings de dependências
+├── Application/
+│   ├── DTOs/                        # Objetos de transferência
+│   ├── Ports/                       # Interfaces de integração
+│   └── Support/                     # Utilitários de aplicação
+├── Domain/
+│   ├── Occurrence/
+│   ├── Dispatch/
+│   ├── Idempotency/
+│   └── Shared/
+├── Infrastructure/
+│   ├── Persistence/                 # Repositories concretos
+│   ├── Cache/
+│   └── Support/
+├── database/migrations/
 ├── routes/
-│   └── api.php
-│
 └── tests/
-    ├── Feature/
-    └── Unit/
 ```
 
 ---

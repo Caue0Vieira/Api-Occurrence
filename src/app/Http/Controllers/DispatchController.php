@@ -7,6 +7,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\CreateDispatchRequest;
 use App\Http\Requests\UpdateDispatchStatusRequest;
 use Domain\Dispatch\Service\DispatchService;
+use Domain\Idempotency\Exceptions\DuplicateCommandException;
+use Domain\Occurrence\Exceptions\OccurrenceNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -95,13 +97,23 @@ class DispatchController extends Controller
     )]
     public function create(CreateDispatchRequest $request, string $occurrenceId): JsonResponse
     {
-        $result = $this->dispatchService->createDispatch(
-            occurrenceId: $occurrenceId,
-            resourceCode: $request->input('resourceCode'),
-            idempotencyKey: (string) $request->attributes->get('idempotency_key')
-        );
+        try {
+            $result = $this->dispatchService->createDispatch(
+                occurrenceId: $occurrenceId,
+                resourceCode: $request->input('resourceCode'),
+                idempotencyKey: (string) $request->attributes->get('idempotency_key')
+            );
 
-        return response()->json($result->toArray(), 202);
+            return response()->json($result->toArray(), 202);
+        } catch (OccurrenceNotFoundException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        } catch (DuplicateCommandException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        }
     }
 
     #[OA\Post(
@@ -167,12 +179,18 @@ class DispatchController extends Controller
     )]
     public function close(Request $request, string $dispatchId): JsonResponse
     {
+        try {
         $result = $this->dispatchService->closeDispatch(
             dispatchId: $dispatchId,
             idempotencyKey: (string) $request->attributes->get('idempotency_key')
         );
 
         return response()->json($result->toArray(), 202);
+        } catch (DuplicateCommandException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        }
     }
 
     #[OA\Patch(
@@ -244,12 +262,18 @@ class DispatchController extends Controller
     )]
     public function updateStatus(UpdateDispatchStatusRequest $request, string $dispatchId): JsonResponse
     {
+        try {
         $result = $this->dispatchService->updateDispatchStatus(
             dispatchId: $dispatchId,
             statusCode: $request->input('statusCode'),
-            idempotencyKey: (string) $request->attributes->get('idempotency_key', '')
+                idempotencyKey: (string) $request->attributes->get('idempotency_key')
         );
 
         return response()->json($result->toArray(), 202);
+        } catch (DuplicateCommandException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        }
     }
 }

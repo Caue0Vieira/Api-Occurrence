@@ -9,5 +9,7 @@ use Application\DTOs\CommandStatusResult;
 interface CommandInboxReadRepositoryInterface
 {
     public function findByCommandId(string $commandId): ?CommandStatusResult;
+
+    public function existsByTypeAndExternalIdWithDifferentIdempotencyKey(string $type, string $externalId, string $idempotencyKey): bool;
 }
 

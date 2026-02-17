@@ -6,7 +6,7 @@ namespace Domain\Occurrence\Exceptions;
 
 use Domain\Shared\Exceptions\DomainException;
 
-final class OccurrenceNotFoundException extends DomainException
+class OccurrenceNotFoundException extends DomainException
 {
     public static function withId(string $id): self
     {
@@ -18,4 +18,3 @@ final class OccurrenceNotFoundException extends DomainException
         return new self("Occurrence not found with external ID: {$externalId}", 404);
     }
 }
-

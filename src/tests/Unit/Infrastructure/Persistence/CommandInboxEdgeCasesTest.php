@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Infrastructure\Persistence;
 
+use Domain\Idempotency\Enums\CommandSource;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Infrastructure\Persistence\Repositories\CommandInboxWriteRepository;
 use Tests\TestCase;
@@ -32,7 +33,7 @@ class CommandInboxEdgeCasesTest extends TestCase
         $newPayload = ['externalId' => 'ext-expired-1', 'type' => 'incendio_urbano'];
         $result = $repository->registerOrGet(
             idempotencyKey: 'idem-expired-001',
-            source: 'external_system',
+            source: CommandSource::EXTERNAL->value,
             type: 'create_occurrence',
             scopeKey: 'ext-expired-1',
             payload: $newPayload,
@@ -65,7 +66,7 @@ class CommandInboxEdgeCasesTest extends TestCase
 
         $result = $repository->registerOrGet(
             idempotencyKey: 'idem-processed-001',
-            source: 'external_system',
+            source: CommandSource::EXTERNAL->value,
             type: 'create_occurrence',
             scopeKey: 'ext-processed-1',
             payload: $payload,
@@ -96,7 +97,7 @@ class CommandInboxEdgeCasesTest extends TestCase
 
         $result = $repository->registerOrGet(
             idempotencyKey: 'idem-failed-001',
-            source: 'external_system',
+            source: CommandSource::EXTERNAL->value,
             type: 'create_occurrence',
             scopeKey: 'ext-failed-1',
             payload: $payload,
@@ -127,7 +128,7 @@ class CommandInboxEdgeCasesTest extends TestCase
 
         $repository->registerOrGet(
             idempotencyKey: 'idem-conflict-001',
-            source: 'external_system',
+            source: CommandSource::EXTERNAL->value,
             type: 'create_occurrence',
             scopeKey: 'ext-conflict-1',
             payload: $differentPayload,

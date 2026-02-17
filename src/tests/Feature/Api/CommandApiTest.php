@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api;
 
+use Domain\Idempotency\Enums\CommandSource;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Tests\Traits\CommandInboxTestHelpers;
@@ -13,16 +14,16 @@ class CommandApiTest extends TestCase
     use RefreshDatabase;
     use CommandInboxTestHelpers;
 
-    public function test_get_command_status_returns_enqueued_command(): void
+    public function test_get_command_status_returns_received_command(): void
     {
         $commandId = $this->createCommandInbox([
             'id' => '018f0e2b-f278-7be1-88f9-cf0d43edc001',
             'idempotency_key' => 'idem-command-pending',
-            'source' => 'internal_system',
+            'source' => CommandSource::INTERNAL->value,
             'type' => 'start_occurrence',
             'scope_key' => 'occ-1001',
             'payload' => ['occurrenceId' => 'occ-1001'],
-            'status' => 'ENQUEUED',
+            'status' => 'RECEIVED',
         ]);
 
         $response = $this
@@ -32,7 +33,7 @@ class CommandApiTest extends TestCase
         $response->assertStatus(200);
         $response->assertJson([
             'command_id' => $commandId,
-            'status' => 'ENQUEUED',
+            'status' => 'RECEIVED',
             'result' => null,
             'error_message' => null,
             'processed_at' => null,
@@ -44,7 +45,7 @@ class CommandApiTest extends TestCase
         $commandId = $this->createCommandInbox([
             'id' => '018f0e2b-f278-7be1-88f9-cf0d43edc002',
             'idempotency_key' => 'idem-command-processed',
-            'source' => 'internal_system',
+            'source' => CommandSource::INTERNAL->value,
             'type' => 'create_occurrence',
             'scope_key' => 'ext-2002',
             'payload' => ['externalId' => 'ext-2002'],

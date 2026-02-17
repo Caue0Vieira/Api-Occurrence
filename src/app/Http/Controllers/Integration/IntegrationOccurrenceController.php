@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Integration;
 
 use App\Http\Requests\CreateOccurrenceRequest;
+use Domain\Idempotency\Enums\CommandSource;
+use Domain\Idempotency\Exceptions\DuplicateCommandException;
+use Domain\Occurrence\Exceptions\OccurrenceAlreadyExistsException;
 use Domain\Occurrence\Services\OccurrenceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
@@ -91,7 +94,7 @@ class IntegrationOccurrenceController extends Controller
                 description: $request->input('description'),
                 reportedAt: $request->input('reportedAt'),
                 idempotencyKey: (string) $request->attributes->get('idempotency_key'),
-                source: 'external_system'
+                source: CommandSource::EXTERNAL
             );
 
             Log::info('✅ [API] Service completed, returning response', [
@@ -99,6 +102,22 @@ class IntegrationOccurrenceController extends Controller
             ]);
 
             return response()->json($result->toArray(), 202);
+        } catch (OccurrenceAlreadyExistsException $e) {
+            Log::warning('⚠️ [API] Duplicate external_id attempt', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
+        } catch (DuplicateCommandException $e) {
+            Log::info('ℹ️ [API] Duplicate command (idempotency)', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], $e->getCode());
         } catch (\Throwable $e) {
             Log::error('❌ [API] Error in create occurrence', [
                 'error' => $e->getMessage(),
