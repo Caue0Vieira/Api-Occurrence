@@ -440,7 +440,7 @@
                     "Occurrences"
                 ],
                 "summary": "Listar ocorrências",
-                "description": "Retorna uma lista paginada de ocorrências com opções de filtro por status e tipo",
+                "description": "Retorna uma lista paginada de ocorrências com opções de filtro por status, tipo e data",
                 "operationId": "listOccurrences",
                 "parameters": [
                     {
@@ -461,6 +461,28 @@
                         "schema": {
                             "type": "string",
                             "example": "incendio_urbano"
+                        }
+                    },
+                    {
+                        "name": "dateFrom",
+                        "in": "query",
+                        "description": "Filtrar ocorrências a partir desta data (formato: YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2024-01-01"
+                        }
+                    },
+                    {
+                        "name": "dateTo",
+                        "in": "query",
+                        "description": "Filtrar ocorrências até esta data (formato: YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2024-12-31"
                         }
                     },
                     {
